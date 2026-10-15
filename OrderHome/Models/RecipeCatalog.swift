@@ -215,6 +215,8 @@ enum RecipeCatalog {
         )
     ]
 
+    static let indexByID: [String: Recipe] = Dictionary(uniqueKeysWithValues: all.map { ($0.id, $0) })
+
     private static func ingredient(_ recipe: String, _ key: String, _ name: String, _ amount: Double, _ unit: String) -> Ingredient {
         Ingredient(id: "\(recipe)-\(key)", name: name, amount: amount, unit: unit)
     }

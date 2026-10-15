@@ -8,10 +8,28 @@ struct CloudConfiguration: Equatable {
     let inviteBaseURL: URL?
     let appleSignInEnabled: Bool
 
+    private static let lock = NSLock()
+    private static var cachedMainResult: Result<CloudConfiguration, CloudConfigurationError>?
+
     static func load(bundle: Bundle = .main) -> Result<CloudConfiguration, CloudConfigurationError> {
-        do { return .success(try CloudConfiguration(info: bundle.infoDictionary ?? [:])) }
-        catch let error as CloudConfigurationError { return .failure(error) }
-        catch { return .failure(.invalidProjectURL) }
+        if bundle == .main {
+            lock.lock()
+            if let cached = cachedMainResult {
+                lock.unlock()
+                return cached
+            }
+            lock.unlock()
+        }
+        let result: Result<CloudConfiguration, CloudConfigurationError>
+        do { result = .success(try CloudConfiguration(info: bundle.infoDictionary ?? [:])) }
+        catch let error as CloudConfigurationError { result = .failure(error) }
+        catch { result = .failure(.invalidProjectURL) }
+        if bundle == .main {
+            lock.lock()
+            cachedMainResult = result
+            lock.unlock()
+        }
+        return result
     }
 
     init(info: [String: Any], allowLocalhost: Bool = CloudConfiguration.localDevelopmentAllowed) throws {

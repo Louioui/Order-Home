@@ -9,10 +9,15 @@ struct HouseMenuView: View {
     @State private var selectedRecipe: Recipe?
     private let categories = ["All recipes", "Favorites", "Quick & easy", "Comfort food", "Date night"]
     private var filtered: [Recipe] {
-        store.recipes.filter { recipe in
-            let searchMatch = search.isEmpty || "\(recipe.title) \(recipe.cuisine) \(recipe.category) \(recipe.subtitle)".localizedCaseInsensitiveContains(search)
+        let query = search.trimmingCharacters(in: .whitespacesAndNewlines)
+        return store.recipes.filter { recipe in
             let categoryMatch = category == "All recipes" || (category == "Favorites" ? store.favoriteIDs.contains(recipe.id) : recipe.category == category || (category == "Quick & easy" && recipe.minutes > 0 && recipe.minutes <= 30))
-            return searchMatch && categoryMatch
+            guard categoryMatch else { return false }
+            if query.isEmpty { return true }
+            return recipe.title.localizedCaseInsensitiveContains(query)
+                || recipe.cuisine.localizedCaseInsensitiveContains(query)
+                || recipe.category.localizedCaseInsensitiveContains(query)
+                || recipe.subtitle.localizedCaseInsensitiveContains(query)
         }
     }
     var body: some View {

@@ -2,7 +2,7 @@
 
 The bulgogi image is an original AI-generated food photograph. The remaining food photography is served by Unsplash.
 
-- bulgogi: created with OpenAI's built-in image generation tool for Order Home, October 14, 2026. App asset: `OrderHome/Assets.xcassets/bulgogi.imageset/photo.png`. Replaces the former stock steak photograph so the image matches the bulgogi bowl recipe.
+- bulgogi: created with OpenAI's built-in image generation tool for Order Home, October 14, 2026. App asset: `OrderHome/Assets.xcassets/bulgogi.imageset/photo.jpg`. Replaces the former stock steak photograph so the image matches the bulgogi bowl recipe.
 - pasta: https://unsplash.com/photos/1551183053-bf91a1d81141 — https://images.unsplash.com/photo-1551183053-bf91a1d81141
 - pizza: https://unsplash.com/photos/1579751626657-72bc17010498 — https://images.unsplash.com/photo-1579751626657-72bc17010498
 - tacos: https://unsplash.com/photos/1551504734-5ee1c4a1479b — https://images.unsplash.com/photo-1551504734-5ee1c4a1479b

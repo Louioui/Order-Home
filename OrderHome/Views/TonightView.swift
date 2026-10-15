@@ -162,10 +162,11 @@ struct TonightView: View {
         }
     }
     private func boardCard(_ recipe: Recipe) -> some View {
-        VStack(alignment: .leading, spacing: 9) {
+        let cardScore = store.score(for: recipe.id)
+        return VStack(alignment: .leading, spacing: 9) {
             ZStack(alignment: .topTrailing) {
                 FoodImage(recipe: recipe).frame(height: 106).clipShape(RoundedRectangle(cornerRadius: 13))
-                if store.score(for: recipe.id) > 0 { Text("\(store.score(for: recipe.id)) ♥").font(.system(size: 10, weight: .semibold)).padding(.horizontal, 8).padding(.vertical, 5).background(.white, in: Capsule()).padding(7) }
+                if cardScore > 0 { Text("\(cardScore) ♥").font(.system(size: 10, weight: .semibold)).padding(.horizontal, 8).padding(.vertical, 5).background(.white, in: Capsule()).padding(7) }
             }
             Text(recipe.title).font(.system(size: 13, weight: .semibold)).foregroundStyle(OHTheme.ink).lineLimit(1)
             HStack { Text(recipe.durationLabel); Spacer(); Text(recipe.cuisine) }.font(.system(size: 10)).foregroundStyle(OHTheme.muted)

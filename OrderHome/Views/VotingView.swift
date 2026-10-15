@@ -92,7 +92,7 @@ struct VotingView: View {
                 Text(emoji).font(.system(size: 19))
                 Text(title).font(.system(size: 10, weight: .semibold)).foregroundStyle(selected ? OHTheme.accent : OHTheme.muted)
             }.frame(maxWidth: .infinity).padding(.vertical, 11).background(selected ? OHTheme.accent.opacity(0.08) : OHTheme.background, in: RoundedRectangle(cornerRadius: 12)).overlay(RoundedRectangle(cornerRadius: 12).stroke(selected ? OHTheme.accent : .clear, lineWidth: 1))
-        }.buttonStyle(.plain).accessibilityLabel("\(title) for \(store.recipes.first(where: { $0.id == recipeID })?.title ?? "dish")").accessibilityAddTraits(selected ? .isSelected : [])
+        }.buttonStyle(.plain).accessibilityLabel("\(title) for \(store.recipe(for: recipeID)?.title ?? "dish")").accessibilityAddTraits(selected ? .isSelected : [])
     }
     private var coupleDeck: some View {
         VStack(spacing: 17) {

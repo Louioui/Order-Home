@@ -6,20 +6,20 @@ import Supabase
 final class SupabaseKitchenService: KitchenCloudService {
     let configuration: CloudConfiguration?
     let setupError: String?
-    private let client: SupabaseClient?
-    private let secureStorage: KitchenKeychainStorage?
+    private var _client: SupabaseClient?
+    private var _secureStorage: KitchenKeychainStorage?
+    private var hasAttemptedClientInit = false
 
-    var isConfigured: Bool { client != nil }
+    var isConfigured: Bool { configuration != nil }
 
-    init(configurationResult: Result<CloudConfiguration, CloudConfigurationError> = CloudConfiguration.load()) {
-        switch configurationResult {
-        case .success(let configuration):
-            self.configuration = configuration
-            setupError = nil
+    private var client: SupabaseClient? {
+        if !hasAttemptedClientInit {
+            hasAttemptedClientInit = true
+            guard let configuration else { return nil }
             let namespace = "com.orderhome.auth.\(configuration.projectURL.host ?? "project"):\(configuration.projectURL.port ?? 443)"
             let storage = KitchenKeychainStorage(service: namespace)
-            secureStorage = storage
-            client = SupabaseClient(
+            _secureStorage = storage
+            _client = SupabaseClient(
                 supabaseURL: configuration.projectURL,
                 supabaseKey: configuration.publishableKey,
                 options: .init(
@@ -32,11 +32,24 @@ final class SupabaseKitchenService: KitchenCloudService {
                     )
                 )
             )
+        }
+        return _client
+    }
+
+    private var secureStorage: KitchenKeychainStorage? {
+        _ = client
+        return _secureStorage
+    }
+
+    init(configurationResult: Result<CloudConfiguration, CloudConfigurationError> = CloudConfiguration.load()) {
+        switch configurationResult {
+        case .success(let configuration):
+            self.configuration = configuration
+            setupError = nil
         case .failure(let error):
-            configuration = nil
+            self.configuration = nil
             setupError = error.localizedDescription
-            client = nil
-            secureStorage = nil
+            hasAttemptedClientInit = true
         }
     }
 

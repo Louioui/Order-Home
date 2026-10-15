@@ -23,7 +23,10 @@ struct OrderHomeApp: App {
             .tint(OHTheme.accent)
             .preferredColorScheme(.light)
             .task { KitchenNotifications.shared.installAsDelegate() }
-            .task { await cloud.restore() }
+            .task(priority: .utility) {
+                await Task.yield()
+                await cloud.restore()
+            }
             .onOpenURL { _ = cloud.handleURL($0) }
             .onChange(of: scenePhase) { _, phase in cloud.setApplicationActive(phase == .active) }
             .onChange(of: store.session.timerEnd) { _, end in
@@ -71,10 +74,15 @@ struct RootView: View {
             selectedTab = url.host == "kitchen" ? .kitchen : .tonight
         }
         .onChange(of: scenePhase) { _, phase in
-            if phase != .active { store.save() }
+            if phase == .active {
+                store.checkDeadline()
+            } else {
+                store.save()
+            }
         }
         .animation(.easeInOut(duration: 0.22), value: store.toast)
-        .task {
+        .task(id: store.session.stage) {
+            guard store.session.stage == .voting else { return }
             while !Task.isCancelled {
                 store.checkDeadline()
                 try? await Task.sleep(for: .seconds(2))

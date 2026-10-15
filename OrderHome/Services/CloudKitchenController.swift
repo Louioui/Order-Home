@@ -59,7 +59,13 @@ final class CloudKitchenController {
     /// main-actor isolated and the client's initializer is.
     init(service: (any KitchenCloudService)? = nil, store: OrderHomeStore,
          configuration: CloudConfiguration? = try? CloudConfiguration.load().get(), defaults: UserDefaults = .standard) {
-        self.service = service ?? SupabaseKitchenService()
+        if let service {
+            self.service = service
+        } else if let configuration {
+            self.service = SupabaseKitchenService(configuration: configuration)
+        } else {
+            self.service = SupabaseKitchenService()
+        }
         self.store = store
         self.configuration = configuration
         self.defaults = defaults

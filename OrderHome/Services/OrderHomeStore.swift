@@ -8,7 +8,11 @@ import Observation
 final class OrderHomeStore {
     var household: Household
     var session: DinnerSession
-    var recipes: [Recipe]
+    var recipes: [Recipe] {
+        didSet {
+            rebuildRecipeIndex()
+        }
+    }
     var selectedMemberID: String
     var favoriteIDs: Set<String>
     var hasOnboarded: Bool
@@ -19,6 +23,12 @@ final class OrderHomeStore {
     private(set) var history: [DinnerRecord] = []
 
     static let historyLimit = 60
+    private static let catalogIDs: Set<String> = Set(RecipeCatalog.all.map(\.id))
+    private static let sharedEncoder = JSONEncoder()
+    private static let sharedDecoder = JSONDecoder()
+
+    @ObservationIgnored
+    private var recipeIndex: [String: Recipe] = [:]
 
     private(set) var isSharedPresentation = false
     private var sharedSubmittedMemberIDs: Set<String> = []
@@ -28,6 +38,18 @@ final class OrderHomeStore {
     private var storedOrders: [String: String]
     private let persistenceURL: URL
 
+    private func rebuildRecipeIndex() {
+        if recipes.count == RecipeCatalog.all.count {
+            recipeIndex = RecipeCatalog.indexByID
+        } else {
+            recipeIndex = Dictionary(recipes.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        }
+    }
+
+    func recipe(for id: String) -> Recipe? {
+        recipeIndex[id]
+    }
+
     var currentMember: Member {
         household.members.first(where: { $0.id == selectedMemberID })
             ?? household.members.first
@@ -36,9 +58,9 @@ final class OrderHomeStore {
     var activeMembers: [Member] { household.members.filter(\.attending) }
     var dinerCount: Int { activeMembers.count }
     var pitches: [Recipe] {
-        session.recipeIDs.compactMap { id in recipes.first(where: { $0.id == id }) }
+        session.recipeIDs.compactMap { recipeIndex[$0] }
     }
-    var winner: Recipe? { recipes.first(where: { $0.id == session.winnerID }) }
+    var winner: Recipe? { session.winnerID.flatMap { recipeIndex[$0] } }
     var leader: Recipe? { rankedPitches.first }
     var votes: [Vote] { storedVotes }
     var orders: [String: String] { storedOrders }
@@ -53,6 +75,7 @@ final class OrderHomeStore {
         self.household = Household(name: "Our kitchen", mode: .family, members: [owner])
         self.session = .fresh(now: now)
         self.recipes = RecipeCatalog.all
+        self.recipeIndex = RecipeCatalog.indexByID
         self.selectedMemberID = owner.id
         self.favoriteIDs = []
         self.hasOnboarded = false
@@ -91,9 +114,13 @@ final class OrderHomeStore {
     }
 
     func score(for recipeID: String) -> Int {
-        let attendingIDs = Set(activeMembers.map(\.id))
-        return storedVotes.filter { $0.recipeID == recipeID && attendingIDs.contains($0.memberID) }
-            .reduce(0) { $0 + $1.reaction.rawValue }
+        var total = 0
+        for vote in storedVotes where vote.recipeID == recipeID {
+            if household.members.contains(where: { $0.id == vote.memberID && $0.attending }) {
+                total += vote.reaction.rawValue
+            }
+        }
+        return total
     }
 
     func matchPercent(for recipeID: String) -> Int {
@@ -104,7 +131,7 @@ final class OrderHomeStore {
     func nominate(_ recipe: Recipe) {
         guard !isSharedPresentation else { show("Use your connected kitchen to make this change."); return }
         guard session.stage == .pitching else { show("Start a new dinner to change the menu."); return }
-        guard recipes.contains(where: { $0.id == recipe.id }) else { return }
+        guard recipeIndex[recipe.id] != nil else { return }
         guard !session.recipeIDs.contains(recipe.id) else { show("Already on tonight's menu."); return }
         guard session.recipeIDs.count < 5 else { show("Five choices is a full menu. Remove one to add another."); return }
         session.recipeIDs.append(recipe.id)
@@ -236,7 +263,7 @@ final class OrderHomeStore {
     }
 
     func toggleFavorite(_ id: String) {
-        guard recipes.contains(where: { $0.id == id }) else { return }
+        guard recipeIndex[id] != nil else { return }
         if favoriteIDs.contains(id) { favoriteIDs.remove(id) }
         else { favoriteIDs.insert(id) }
         save()
@@ -263,7 +290,11 @@ final class OrderHomeStore {
     }
 
     func servedCount(of recipeID: String) -> Int {
-        history.filter { $0.recipeID == recipeID }.count
+        var count = 0
+        for record in history where record.recipeID == recipeID {
+            count += 1
+        }
+        return count
     }
 
     func lastServed(_ recipeID: String) -> Date? {
@@ -470,7 +501,7 @@ final class OrderHomeStore {
               !snapshot.members.isEmpty,
               Set(snapshot.members.map(\.id)).count == snapshot.members.count,
               Set(snapshot.pitches.map(\.recipeID)).count == snapshot.pitches.count,
-              snapshot.pitches.allSatisfy({ pitch in recipes.contains(where: { $0.id == pitch.recipeID }) }) else {
+              snapshot.pitches.allSatisfy({ pitch in recipeIndex[pitch.recipeID] != nil }) else {
             throw CloudServiceError.permissionDenied
         }
         // Validate the dinner before changing anything. This function can throw
@@ -500,7 +531,7 @@ final class OrderHomeStore {
             localStateBeforeShared = Snapshot(version: 1, household: household, session: session,
                 selectedMemberID: selectedMemberID, favoriteIDs: favoriteIDs, hasOnboarded: hasOnboarded,
                 votes: storedVotes, orders: storedOrders,
-                customRecipes: recipes.filter { recipe in !RecipeCatalog.all.contains(where: { $0.id == recipe.id }) },
+                customRecipes: recipes.filter { !Self.catalogIDs.contains($0.id) },
                 history: LossyList(history))
             // The local kitchen's dinners must not appear under a shared kitchen.
             history = []
@@ -525,7 +556,7 @@ final class OrderHomeStore {
         })
         if let validated = remoteDinner {
             let remote = validated.dinner, stage = validated.stage, winningRecipeID = validated.winningRecipeID
-            let recipe = recipes.first { $0.id == winningRecipeID }
+            let recipe = winningRecipeID.flatMap { recipeIndex[$0] }
             let sameDinner = previousSession.id == remote.id
             let stepIndex = min(max(0, remote.cookingStepIndex), max(0, (recipe?.steps.count ?? 1) - 1))
             let completed = Set((recipe?.steps ?? []).prefix(stage == .served ? (recipe?.steps.count ?? 0) : stepIndex).map(\.id))
@@ -572,7 +603,7 @@ final class OrderHomeStore {
             version: 1, household: household, session: session,
             selectedMemberID: selectedMemberID, favoriteIDs: favoriteIDs,
             hasOnboarded: hasOnboarded, votes: storedVotes, orders: storedOrders,
-            customRecipes: recipes.filter { recipe in !RecipeCatalog.all.contains(where: { $0.id == recipe.id }) },
+            customRecipes: recipes.filter { !Self.catalogIDs.contains($0.id) },
             history: LossyList(history)
         )
         // Shared household data stays out of the unscoped local save. Only the
@@ -587,9 +618,7 @@ final class OrderHomeStore {
         do {
             let directory = persistenceURL.deletingLastPathComponent()
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-            let encoder = JSONEncoder()
-            encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-            let data = try encoder.encode(snapshot)
+            let data = try Self.sharedEncoder.encode(snapshot)
             try data.write(to: persistenceURL, options: .atomic)
             persistenceError = nil
         } catch {
@@ -599,12 +628,25 @@ final class OrderHomeStore {
 
     private var rankedPitches: [Recipe] {
         let activeIDs = Set(activeMembers.map(\.id))
+        let currentPitches = pitches
+        guard currentPitches.count > 1 else { return currentPitches }
+
+        var scores: [String: Int] = [:]
+        var passCounts: [String: Int] = [:]
+        for vote in storedVotes where activeIDs.contains(vote.memberID) {
+            scores[vote.recipeID, default: 0] += vote.reaction.rawValue
+            if vote.reaction == .pass {
+                passCounts[vote.recipeID, default: 0] += 1
+            }
+        }
+
         let positions = Dictionary(uniqueKeysWithValues: session.recipeIDs.enumerated().map { ($1, $0) })
-        return pitches.sorted { left, right in
-            let leftScore = score(for: left.id), rightScore = score(for: right.id)
+        return currentPitches.sorted { left, right in
+            let leftScore = scores[left.id, default: 0]
+            let rightScore = scores[right.id, default: 0]
             if leftScore != rightScore { return leftScore > rightScore }
-            let leftPasses = storedVotes.filter { $0.recipeID == left.id && activeIDs.contains($0.memberID) && $0.reaction == .pass }.count
-            let rightPasses = storedVotes.filter { $0.recipeID == right.id && activeIDs.contains($0.memberID) && $0.reaction == .pass }.count
+            let leftPasses = passCounts[left.id, default: 0]
+            let rightPasses = passCounts[right.id, default: 0]
             if leftPasses != rightPasses { return leftPasses < rightPasses }
             return (positions[left.id] ?? 0) < (positions[right.id] ?? 0)
         }
@@ -642,7 +684,7 @@ final class OrderHomeStore {
         guard FileManager.default.fileExists(atPath: persistenceURL.path) else { return }
         do {
             let data = try Data(contentsOf: persistenceURL)
-            let snapshot = try JSONDecoder().decode(Snapshot.self, from: data)
+            let snapshot = try Self.sharedDecoder.decode(Snapshot.self, from: data)
             guard snapshot.version == 1, !snapshot.household.members.isEmpty,
                   Set(snapshot.household.members.map(\.id)).count == snapshot.household.members.count else {
                 throw CocoaError(.coderReadCorrupt)
@@ -651,6 +693,7 @@ final class OrderHomeStore {
             session = snapshot.session
             var loadedRecipeIDs = Set(recipes.map(\.id))
             var loadedURLs = Set<URL>()
+            var newRecipes: [Recipe] = []
             for recipe in snapshot.customRecipes ?? [] {
                 guard recipe.id.hasPrefix("saved-"), !recipe.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
                       let source = recipe.sourceURL.flatMap(Self.validatedRecipeURL),
@@ -658,7 +701,10 @@ final class OrderHomeStore {
                       loadedURLs.insert(source).inserted else { continue }
                 var imported = recipe
                 imported.sourceURL = source
-                recipes.append(imported)
+                newRecipes.append(imported)
+            }
+            if !newRecipes.isEmpty {
+                recipes.append(contentsOf: newRecipes)
             }
             let knownRecipeIDs = Set(recipes.map(\.id))
             var seenIDs = Set<String>()

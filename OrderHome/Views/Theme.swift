@@ -37,11 +37,12 @@ struct PrimaryButton: View {
 struct FoodImage: View {
     let recipe: Recipe
     var body: some View {
-        GeometryReader { geo in
-            Image(recipe.imageName).resizable().scaledToFill()
-                .frame(width: geo.size.width, height: geo.size.height).clipped()
-        }
-        .accessibilityLabel(recipe.title)
+        Image(recipe.imageName)
+            .resizable()
+            .scaledToFill()
+            .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
+            .clipped()
+            .accessibilityLabel(recipe.title)
     }
 }
 

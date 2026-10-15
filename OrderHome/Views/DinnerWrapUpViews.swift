@@ -82,7 +82,7 @@ private struct PastDinnerCard: View {
     let record: DinnerRecord
     let onNotice: (String) -> Void
 
-    private var recipe: Recipe? { store.recipes.first { $0.id == record.recipeID } }
+    private var recipe: Recipe? { store.recipe(for: record.recipeID) }
 
     var body: some View {
         HStack(alignment: .top, spacing: 14) {

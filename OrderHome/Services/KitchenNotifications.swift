@@ -91,11 +91,13 @@ final class KitchenNotifications: NSObject, UNUserNotificationCenterDelegate {
         UserDefaults.standard.removeObject(forKey: identifierDefaultsKey)
     }
 
+    private static let cachedBellWaveData = bellWaveData()
+
     /// A short foreground chime. It respects the device's silent switch and
     /// makes no claim that another person's device has received an alert.
     func playDinnerBell() {
         do {
-            bellPlayer = try AVAudioPlayer(data: Self.bellWaveData())
+            bellPlayer = try AVAudioPlayer(data: Self.cachedBellWaveData)
             bellPlayer?.volume = 0.7
             bellPlayer?.play()
         } catch {
