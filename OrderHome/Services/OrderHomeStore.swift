@@ -473,6 +473,29 @@ final class OrderHomeStore {
               snapshot.pitches.allSatisfy({ pitch in recipes.contains(where: { $0.id == pitch.recipeID }) }) else {
             throw CloudServiceError.permissionDenied
         }
+        // Validate the dinner before changing anything. This function can throw
+        // only here: a throw after local state is stashed or overwritten would leave
+        // a half-applied shared kitchen with an emptied history, and the caller does
+        // not restore it, so the next local save would write that over the personal
+        // kitchen.
+        let pitchMap = Dictionary(uniqueKeysWithValues: snapshot.pitches.map { ($0.id, $0.recipeID) })
+        var remoteDinner: (dinner: CloudDinner, stage: DinnerStage, winningRecipeID: String?)?
+        if let remote = snapshot.session {
+            let stage: DinnerStage
+            switch remote.status {
+            case "pitching": stage = .pitching
+            case "voting": stage = .voting
+            case "ticket_locked": stage = .ticketLocked
+            case "cooking": stage = .cooking
+            case "served": stage = .served
+            default: throw CloudServiceError.dinnerChanged
+            }
+            let winningRecipeID = remote.winningPitchID.flatMap { pitchMap[$0] }
+            if [.ticketLocked, .cooking, .served].contains(stage), winningRecipeID == nil {
+                throw CloudServiceError.dinnerChanged
+            }
+            remoteDinner = (remote, stage, winningRecipeID)
+        }
         if !isSharedPresentation {
             localStateBeforeShared = Snapshot(version: 1, household: household, session: session,
                 selectedMemberID: selectedMemberID, favoriteIDs: favoriteIDs, hasOnboarded: hasOnboarded,
@@ -493,7 +516,6 @@ final class OrderHomeStore {
             })
         selectedMemberID = ownMember.id
         sharedSubmittedMemberIDs = Set(snapshot.orders.filter { $0.submittedAt != nil }.map(\.memberID))
-        let pitchMap = Dictionary(uniqueKeysWithValues: snapshot.pitches.map { ($0.id, $0.recipeID) })
         storedVotes = snapshot.votes.compactMap { vote in
             guard let recipeID = pitchMap[vote.pitchID], let reaction = Reaction(rawValue: vote.voteWeight) else { return nil }
             return Vote(recipeID: recipeID, memberID: vote.memberID, reaction: reaction)
@@ -501,20 +523,8 @@ final class OrderHomeStore {
         storedOrders = Dictionary(uniqueKeysWithValues: snapshot.orders.map { order in
             (order.memberID, (order.modifierTags + (order.dinerNote.isEmpty ? [] : [order.dinerNote])).joined(separator: " · "))
         })
-        if let remote = snapshot.session {
-            let stage: DinnerStage
-            switch remote.status {
-            case "pitching": stage = .pitching
-            case "voting": stage = .voting
-            case "ticket_locked": stage = .ticketLocked
-            case "cooking": stage = .cooking
-            case "served": stage = .served
-            default: throw CloudServiceError.dinnerChanged
-            }
-            let winningRecipeID = remote.winningPitchID.flatMap { pitchMap[$0] }
-            if [.ticketLocked, .cooking, .served].contains(stage), winningRecipeID == nil {
-                throw CloudServiceError.dinnerChanged
-            }
+        if let validated = remoteDinner {
+            let remote = validated.dinner, stage = validated.stage, winningRecipeID = validated.winningRecipeID
             let recipe = recipes.first { $0.id == winningRecipeID }
             let sameDinner = previousSession.id == remote.id
             let stepIndex = min(max(0, remote.cookingStepIndex), max(0, (recipe?.steps.count ?? 1) - 1))

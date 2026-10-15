@@ -37,9 +37,9 @@ final class DinnerHistoryTests: XCTestCase {
         try JSONSerialization.data(withJSONObject: object).write(to: url)
     }
 
-    private func sharedSnapshot() throws -> CloudKitchenSnapshot {
+    private func sharedSnapshot(session: String = "null") throws -> CloudKitchenSnapshot {
         let json = """
-        {"household":{"id":"home","name":"Shared table","mode":"family","owner_user_id":"user"},"members":[{"id":"member","user_id":"user","display_name":"Sam","avatar_emoji":"🍽️","default_role":"head_chef","dietary_tags":[]}],"session":null,"pitches":[],"votes":[],"orders":[]}
+        {"household":{"id":"home","name":"Shared table","mode":"family","owner_user_id":"user"},"members":[{"id":"member","user_id":"user","display_name":"Sam","avatar_emoji":"🍽️","default_role":"head_chef","dietary_tags":[]}],"session":\(session),"pitches":[],"votes":[],"orders":[]}
         """
         return try CloudJSON.decoder().decode(CloudKitchenSnapshot.self, from: Data(json.utf8))
     }
@@ -292,5 +292,33 @@ final class DinnerHistoryTests: XCTestCase {
         store.restoreLocalKitchen()
         XCTAssertFalse(store.isSharedPresentation)
         XCTAssertEqual(store.history, [record])
+    }
+
+    @MainActor
+    func testAnInvalidSharedDinnerLeavesTheLocalKitchenAndItsHistoryUntouched() throws {
+        let url = newPersistenceURL()
+        let store = OrderHomeStore(persistenceURL: url)
+        serveDinner(on: store)
+        let record = try XCTUnwrap(store.history.first)
+        let household = store.household
+        let selected = store.selectedMemberID
+
+        let unknownStatus = #"{"id":"dinner","household_id":"home","head_chef_id":"member","status":"mystery","voting_deadline":"2026-10-16T01:30:00Z","winning_pitch_id":null,"missing_groceries":[],"cooking_step_index":0}"#
+        let lockedWithoutWinner = #"{"id":"dinner","household_id":"home","head_chef_id":"member","status":"ticket_locked","voting_deadline":"2026-10-16T01:30:00Z","winning_pitch_id":null,"missing_groceries":[],"cooking_step_index":0}"#
+        for (name, dinner) in [("an unknown status", unknownStatus), ("a locked dinner with no winner", lockedWithoutWinner)] {
+            XCTAssertThrowsError(try store.applySharedSnapshot(try sharedSnapshot(session: dinner), userID: "user"), name) { error in
+                XCTAssertEqual(error as? CloudServiceError, .dinnerChanged, name)
+            }
+            XCTAssertFalse(store.isSharedPresentation, name)
+            XCTAssertEqual(store.history, [record], "\(name): history must not be cleared")
+            XCTAssertEqual(store.household, household, "\(name): the household must not be replaced")
+            XCTAssertEqual(store.selectedMemberID, selected, name)
+        }
+
+        // The failed attempts must not poison the next ordinary save.
+        store.toggleFavorite(RecipeCatalog.all[0].id)
+        let reloaded = OrderHomeStore(persistenceURL: url)
+        XCTAssertEqual(reloaded.history, [record])
+        XCTAssertEqual(reloaded.household, household)
     }
 }
