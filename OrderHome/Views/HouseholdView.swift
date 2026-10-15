@@ -9,6 +9,7 @@ struct HouseholdView: View {
     @State private var leavingSample = false
     @State private var showingSharedKitchen = false
     @State private var showingInvitation = false
+    @State private var showingFoodStats = false
     var body: some View {
         ScrollView(showsIndicators: false) {
             VStack(alignment: .leading, spacing: 25) {
@@ -63,6 +64,7 @@ struct HouseholdView: View {
                     }
                 }
                 kitchenAccountCard
+                familyFoodStatsButton
                 if let error = store.persistenceError {
                     Text(error).font(.system(size: 12)).foregroundStyle(OHTheme.accent).padding(16).background(.white, in: RoundedRectangle(cornerRadius: 14))
                 }
@@ -78,6 +80,7 @@ struct HouseholdView: View {
         .sheet(item: $editingMember) { MemberEditorView(member: $0) }
         .sheet(isPresented: $showingSharedKitchen) { SharedKitchenView() }
         .sheet(isPresented: $showingInvitation) { SharedKitchenInviteView() }
+        .sheet(isPresented: $showingFoodStats) { FamilyFoodStatsSheet() }
         .confirmationDialog("Ready for your own kitchen?", isPresented: $leavingSample, titleVisibility: .visible) {
             Button("Create my own kitchen") { store.leaveSampleKitchen() }
         } message: { Text("We’ll clear the sample table and take you back to setup. You can explore the sample again any time before setup.") }
@@ -131,6 +134,35 @@ struct HouseholdView: View {
                 }.font(.system(size: 13, weight: .semibold)).foregroundStyle(OHTheme.accent)
             }.accessibilityIdentifier("manageSharedKitchen")
         }.padding(20).background(OHTheme.lightGreen, in: RoundedRectangle(cornerRadius: 20))
+    }
+    private var familyFoodStatsButton: some View {
+        Button {
+            showingFoodStats = true
+        } label: {
+            HStack(spacing: 14) {
+                ZStack {
+                    Circle().fill(OHTheme.accent.opacity(0.12)).frame(width: 44, height: 44)
+                    Image(systemName: "chart.bar.xaxis")
+                        .font(.system(size: 19))
+                        .foregroundStyle(OHTheme.accent)
+                }
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Dinner Wrapped & Food Stats")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(OHTheme.ink)
+                    Text("\(store.foodStats.dinnersCookedCount) dinners cooked together")
+                        .font(.system(size: 11))
+                        .foregroundStyle(OHTheme.muted)
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(OHTheme.muted)
+            }
+            .padding(16)
+            .background(.white, in: RoundedRectangle(cornerRadius: 18))
+        }
+        .buttonStyle(.plain)
     }
     private var shareText: String {
         if let winner = store.winner { return "Dinner at \(store.household.name) 🍽️\n\(winner.title) for \(store.dinerCount).\n\(store.session.stage.title).\nMade with Order Home." }
@@ -199,5 +231,153 @@ struct MemberEditorView: View {
             Eyebrow(text: title)
             TextField(placeholder, text: text).font(.system(size: 14)).padding(17).background(.white, in: RoundedRectangle(cornerRadius: 14))
         }
+    }
+}
+
+struct FamilyFoodStatsSheet: View {
+    @Environment(OrderHomeStore.self) private var store
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 24) {
+                    let stats = store.foodStats
+
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("DINNER WRAPPED")
+                            .font(.system(size: 10, weight: .bold, design: .monospaced))
+                            .tracking(1.8)
+                            .foregroundStyle(OHTheme.accent)
+                        Text("Your table at a glance.")
+                            .font(.system(size: 32, weight: .regular, design: .serif))
+                            .foregroundStyle(OHTheme.ink)
+                        Text("Every shared meal is a memory made around the table.")
+                            .font(.subheadline)
+                            .foregroundStyle(OHTheme.muted)
+                    }
+
+                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 14) {
+                        statTile(
+                            title: "DINNERS COOKED",
+                            value: "\(stats.dinnersCookedCount)",
+                            detail: "Meals shared",
+                            icon: "fork.knife"
+                        )
+                        statTile(
+                            title: "HOUSE FAVORITES",
+                            value: "\(stats.favoriteRecipeCount)",
+                            detail: "Dishes saved",
+                            icon: "heart.fill"
+                        )
+                        statTile(
+                            title: "AVG COOK TIME",
+                            value: stats.averageCookMinutes > 0 ? "\(stats.averageCookMinutes)m" : "—",
+                            detail: "Per dinner",
+                            icon: "clock.fill"
+                        )
+                        statTile(
+                            title: "TABLE RATING",
+                            value: stats.averageRating > 0 ? String(format: "%.1f★", stats.averageRating) : "—",
+                            detail: "\(stats.totalRatingsCount) ratings",
+                            icon: "star.fill"
+                        )
+                    }
+
+                    if let top = stats.topCookedRecipe {
+                        VStack(alignment: .leading, spacing: 14) {
+                            Text("HOUSE SIGNATURE DISH")
+                                .font(.system(size: 10, weight: .bold, design: .monospaced))
+                                .tracking(1.5)
+                                .foregroundStyle(OHTheme.muted)
+
+                            HStack(spacing: 14) {
+                                FoodImage(recipe: top)
+                                    .frame(width: 72, height: 72)
+                                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                                VStack(alignment: .leading, spacing: 5) {
+                                    Text(top.title)
+                                        .font(.headline)
+                                        .foregroundStyle(OHTheme.ink)
+                                    Text("Cooked \(stats.topCookedCount) \(stats.topCookedCount == 1 ? "time" : "times") together")
+                                        .font(.caption)
+                                        .foregroundStyle(OHTheme.accent)
+                                }
+                                Spacer(minLength: 0)
+                            }
+                        }
+                        .padding(20)
+                        .background(.white, in: RoundedRectangle(cornerRadius: 20))
+                    }
+
+                    if !stats.dinerFrequencies.isEmpty {
+                        VStack(alignment: .leading, spacing: 14) {
+                            Text("WHO’S BEEN AT THE TABLE")
+                                .font(.system(size: 10, weight: .bold, design: .monospaced))
+                                .tracking(1.5)
+                                .foregroundStyle(OHTheme.muted)
+
+                            VStack(spacing: 12) {
+                                ForEach(stats.dinerFrequencies, id: \.name) { item in
+                                    HStack(spacing: 12) {
+                                        Text(item.emoji).font(.title3)
+                                        Text(item.name)
+                                            .font(.subheadline.weight(.medium))
+                                            .foregroundStyle(OHTheme.ink)
+                                        Spacer()
+                                        Text("\(item.count) \(item.count == 1 ? "dinner" : "dinners")")
+                                            .font(.caption.monospacedDigit())
+                                            .foregroundStyle(OHTheme.muted)
+                                    }
+                                }
+                            }
+                        }
+                        .padding(20)
+                        .background(.white, in: RoundedRectangle(cornerRadius: 20))
+                    }
+
+                    HStack(alignment: .top, spacing: 12) {
+                        Image(systemName: "quote.bubble.fill").foregroundStyle(OHTheme.accent)
+                        Text("“Pull up a chair. Take a taste. Come join us. Life is so endlessly delicious.”")
+                            .font(.system(size: 15, weight: .regular, design: .serif))
+                            .foregroundStyle(OHTheme.ink)
+                    }
+                    .padding(18)
+                    .background(OHTheme.lightGreen, in: RoundedRectangle(cornerRadius: 18))
+                }
+                .padding(24)
+            }
+            .background(OHTheme.background)
+            .navigationTitle("Table Stats")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Done") { dismiss() }
+                }
+            }
+        }
+    }
+
+    private func statTile(title: String, value: String, detail: String, icon: String) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text(title)
+                    .font(.system(size: 9, weight: .bold, design: .monospaced))
+                    .tracking(1.2)
+                    .foregroundStyle(OHTheme.muted)
+                Spacer()
+                Image(systemName: icon)
+                    .font(.caption)
+                    .foregroundStyle(OHTheme.accent)
+            }
+            Text(value)
+                .font(.system(size: 26, weight: .medium, design: .serif))
+                .foregroundStyle(OHTheme.ink)
+            Text(detail)
+                .font(.caption2)
+                .foregroundStyle(OHTheme.muted)
+        }
+        .padding(16)
+        .background(.white, in: RoundedRectangle(cornerRadius: 18))
     }
 }

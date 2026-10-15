@@ -41,6 +41,35 @@ struct Recipe: Identifiable, Codable, Hashable {
     var ingredients: [Ingredient]
     var steps: [RecipeStep]
     var sourceURL: URL?
+
+    var youtubeVideoID: String? {
+        guard let url = sourceURL else { return nil }
+        return Self.extractYouTubeVideoID(from: url)
+    }
+
+    static func extractYouTubeVideoID(from url: URL) -> String? {
+        guard let host = url.host?.lowercased() else { return nil }
+        if host == "youtu.be" || host.hasSuffix(".youtu.be") {
+            let path = url.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+            let id = path.components(separatedBy: "/").first ?? ""
+            return id.isEmpty ? nil : id
+        }
+        if host.contains("youtube.com") || host.contains("youtube-nocookie.com") {
+            if let components = URLComponents(url: url, resolvingAgainstBaseURL: false) {
+                if let v = components.queryItems?.first(where: { $0.name == "v" })?.value, !v.isEmpty {
+                    return v
+                }
+            }
+            let segments = url.pathComponents.filter { $0 != "/" && !$0.isEmpty }
+            if let first = segments.first {
+                if ["embed", "shorts", "v", "live"].contains(first), segments.count > 1 {
+                    let id = segments[1]
+                    return id.isEmpty ? nil : id
+                }
+            }
+        }
+        return nil
+    }
 }
 
 struct Ingredient: Identifiable, Codable, Hashable {

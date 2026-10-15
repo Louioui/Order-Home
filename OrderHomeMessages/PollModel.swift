@@ -98,4 +98,17 @@ final class PollModel {
     func openOrderHome() {
         if let url = URL(string: "orderhome://kitchen") { openApp(url) }
     }
+
+    func openKitchenTicket(for poll: ChatPoll) {
+        SharedKitchenContainer.writePendingChatPoll(poll)
+        var components = URLComponents(url: poll.url, resolvingAgainstBaseURL: false) ?? URLComponents()
+        var items = components.queryItems ?? []
+        items.append(URLQueryItem(name: "action", value: "lockTicket"))
+        components.queryItems = items
+        if let url = components.url {
+            openApp(url)
+        } else {
+            openApp(poll.url)
+        }
+    }
 }

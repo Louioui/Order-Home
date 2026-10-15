@@ -35,12 +35,12 @@ enum PollReaction: Int, CaseIterable, Identifiable {
 ///
 /// Limitation by design: if two people vote from the same bubble at the same
 /// moment, the last message to arrive wins and the other ballot can be lost.
-struct ChatPoll: Equatable {
+struct ChatPoll: Codable, Equatable {
     static let currentVersion = 1
     static let dishCount = 2...5
     static let maxBallots = 24
 
-    struct Dish: Equatable, Identifiable {
+    struct Dish: Codable, Equatable, Identifiable {
         var id: String
         var title: String
         var minutes: Int

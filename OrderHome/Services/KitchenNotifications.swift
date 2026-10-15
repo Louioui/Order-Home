@@ -147,3 +147,87 @@ final class KitchenNotifications: NSObject, UNUserNotificationCenterDelegate {
         [.banner, .sound]
     }
 }
+
+// MARK: - Live Activities (ActivityKit)
+
+#if canImport(ActivityKit)
+import ActivityKit
+
+@MainActor
+final class KitchenLiveActivityManager {
+    static let shared = KitchenLiveActivityManager()
+    private var currentActivity: Activity<OrderHomeActivityAttributes>?
+
+    private init() {}
+
+    func sync(
+        dinnerID: String,
+        recipeTitle: String,
+        recipeEmoji: String,
+        servings: Int,
+        stage: DinnerStage,
+        stepIndex: Int,
+        totalSteps: Int,
+        stepTitle: String,
+        timerEnd: Date?
+    ) {
+        guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
+
+        if stage == .pitching || stage == .voting {
+            endAll()
+            return
+        }
+
+        let isServed = stage == .served
+        let contentState = OrderHomeActivityAttributes.ContentState(
+            stageTitle: stage.title,
+            currentStepIndex: stepIndex + 1,
+            totalSteps: max(1, totalSteps),
+            stepTitle: stepTitle,
+            timerEnd: timerEnd,
+            isServed: isServed
+        )
+
+        if let activity = currentActivity, activity.attributes.dinnerID == dinnerID {
+            Task {
+                await activity.update(ActivityContent(state: contentState, staleDate: nil))
+                if isServed {
+                    try? await Task.sleep(for: .seconds(20))
+                    await activity.end(ActivityContent(state: contentState, staleDate: nil), dismissalPolicy: .immediate)
+                    if self.currentActivity?.id == activity.id {
+                        self.currentActivity = nil
+                    }
+                }
+            }
+        } else {
+            endAll()
+            let attributes = OrderHomeActivityAttributes(
+                dinnerID: dinnerID,
+                recipeTitle: recipeTitle,
+                recipeEmoji: recipeEmoji,
+                servings: max(1, servings)
+            )
+            do {
+                let activity = try Activity.request(
+                    attributes: attributes,
+                    content: ActivityContent(state: contentState, staleDate: nil),
+                    pushType: nil
+                )
+                self.currentActivity = activity
+            } catch {
+                // System authorization or rate limit
+            }
+        }
+    }
+
+    func endAll() {
+        Task {
+            for activity in Activity<OrderHomeActivityAttributes>.activities {
+                await activity.end(nil, dismissalPolicy: .immediate)
+            }
+            currentActivity = nil
+        }
+    }
+}
+#endif
+

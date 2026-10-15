@@ -22,11 +22,53 @@ enum PollDishMenu {
         entry("curry", "Coconut chickpea curry", 30, "🍛")
     ]
 
+    /// Combines the starter catalog with any custom or imported recipes saved
+    /// in the shared House Menu so family members can pitch them in iMessage.
+    static var allHouseholdDishes: [Entry] {
+        var combined = all
+        let custom = loadCustomRecipesFromSharedStore()
+        for entry in custom {
+            if !combined.contains(where: { $0.id == entry.id }) {
+                combined.append(entry)
+            }
+        }
+        return combined
+    }
+
     static func emoji(for dishID: String) -> String {
-        all.first { $0.id == dishID }?.emoji ?? "🍽️"
+        allHouseholdDishes.first { $0.id == dishID }?.emoji
+            ?? all.first { $0.id == dishID }?.emoji
+            ?? "🍽️"
     }
 
     private static func entry(_ id: String, _ title: String, _ minutes: Int, _ emoji: String) -> Entry {
         Entry(dish: ChatPoll.Dish(id: id, title: title, minutes: minutes), emoji: emoji)
+    }
+
+    private struct SharedSnapshotMini: Decodable {
+        struct RecipeMini: Decodable {
+            var id: String
+            var title: String
+            var minutes: Int
+        }
+        var customRecipes: [RecipeMini]?
+    }
+
+    private static func loadCustomRecipesFromSharedStore() -> [Entry] {
+        let file = SharedKitchenContainer.kitchenFileURL
+        guard FileManager.default.fileExists(atPath: file.path),
+              let data = try? Data(contentsOf: file),
+              let snapshot = try? JSONDecoder().decode(SharedSnapshotMini.self, from: data),
+              let list = snapshot.customRecipes else { return [] }
+        return list.map { recipe in
+            Entry(
+                dish: ChatPoll.Dish(
+                    id: recipe.id,
+                    title: recipe.title,
+                    minutes: recipe.minutes > 0 ? recipe.minutes : 30
+                ),
+                emoji: "✨"
+            )
+        }
     }
 }

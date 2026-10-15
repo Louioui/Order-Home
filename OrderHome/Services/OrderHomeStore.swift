@@ -85,6 +85,7 @@ final class OrderHomeStore {
         self.toast = nil
         self.persistenceError = nil
         restore()
+        checkPendingChatPollHandoff()
     }
 
     func reaction(for recipeID: String, memberID: String? = nil) -> Reaction? {
@@ -341,10 +342,15 @@ final class OrderHomeStore {
         return 0
     }
 
-    /// Saves a creator's original link without implying that its ingredients,
-    /// timing, thumbnail or instructions have been extracted or verified.
+    /// Saves a creator's original link, optionally with custom minutes, ingredients, and steps.
     @discardableResult
-    func addRecipe(title: String, url: URL) -> Bool {
+    func addRecipe(
+        title: String,
+        url: URL,
+        minutes: Int = 0,
+        ingredientLines: String? = nil,
+        stepLines: String? = nil
+    ) -> Bool {
         let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedTitle.isEmpty else {
             show("Give your saved recipe a name first.")
@@ -361,23 +367,113 @@ final class OrderHomeStore {
             return true
         }
         let recipeID = "saved-\(UUID().uuidString)"
-        let recipe = Recipe(
-            id: recipeID, title: String(trimmedTitle.prefix(100)),
-            subtitle: "Your saved recipe. Ingredients and method live in the original link.",
-            cuisine: "From your collection", category: "Saved links", minutes: 0,
-            servings: 4, imageName: "imported", ingredients: [],
-            steps: [RecipeStep(
+        let parsedIngredients = ingredientLines.map(Self.parseIngredientLines) ?? []
+        var parsedSteps = stepLines.map(Self.parseStepLines) ?? []
+        if parsedSteps.isEmpty {
+            parsedSteps = [RecipeStep(
                 id: "\(recipeID)-source", title: "Follow the original recipe",
                 instruction: "Open the original recipe link to follow the creator’s ingredients and method. Portions are managed in the source recipe.",
                 timerSeconds: nil
-            )],
+            )]
+        }
+        let recipe = Recipe(
+            id: recipeID, title: String(trimmedTitle.prefix(100)),
+            subtitle: "Your saved recipe. Follow the steps or check the original video.",
+            cuisine: "From your collection", category: "Saved links", minutes: max(0, minutes),
+            servings: 4, imageName: "imported", ingredients: parsedIngredients,
+            steps: parsedSteps,
             sourceURL: validatedURL
         )
         recipes.append(recipe)
         favoriteIDs.insert(recipeID)
-        show("Recipe link saved to your collection.")
+        show("Recipe saved to your collection.")
         save()
         return true
+    }
+
+    /// Updates existing recipe details such as cook time, manual ingredients, or steps.
+    func updateRecipe(
+        id: String,
+        title: String? = nil,
+        minutes: Int? = nil,
+        ingredientLines: String? = nil,
+        stepLines: String? = nil
+    ) {
+        guard let idx = recipes.firstIndex(where: { $0.id == id }) else { return }
+        var item = recipes[idx]
+        if let title, !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            item.title = String(title.trimmingCharacters(in: .whitespacesAndNewlines).prefix(100))
+        }
+        if let minutes, minutes >= 0 {
+            item.minutes = minutes
+        }
+        if let ingredientLines {
+            item.ingredients = Self.parseIngredientLines(ingredientLines)
+        }
+        if let stepLines {
+            let parsed = Self.parseStepLines(stepLines)
+            if !parsed.isEmpty {
+                item.steps = parsed
+            }
+        }
+        recipes[idx] = item
+        rebuildRecipeIndex()
+        save()
+        show("Recipe details updated.")
+    }
+
+    /// Ingests a completed chat poll from iMessage and locks the kitchen ticket immediately.
+    func importCompletedChatPoll(_ poll: ChatPoll) {
+        guard let leaderDish = poll.leader?.dish ?? poll.results().first?.dish else {
+            show("No winning dish was found in this poll.")
+            return
+        }
+        let winningRecipe: Recipe
+        if let found = recipe(for: leaderDish.id) {
+            winningRecipe = found
+        } else {
+            let synthesized = Recipe(
+                id: leaderDish.id,
+                title: leaderDish.title,
+                subtitle: "Voted tonight in iMessage poll",
+                cuisine: "From chat poll",
+                category: "Family Poll Winner",
+                minutes: leaderDish.minutes,
+                servings: max(1, poll.ballots.count > 0 ? poll.ballots.count : poll.expectedVoters),
+                imageName: "imported",
+                ingredients: [],
+                steps: [
+                    RecipeStep(
+                        id: "\(leaderDish.id)-step-1",
+                        title: "Prepare \(leaderDish.title)",
+                        instruction: "Follow your favorite recipe for \(leaderDish.title) chosen tonight by your family in iMessage.",
+                        timerSeconds: leaderDish.minutes > 0 ? leaderDish.minutes * 60 : nil
+                    )
+                ],
+                sourceURL: nil
+            )
+            recipes.append(synthesized)
+            winningRecipe = synthesized
+        }
+
+        session.recipeIDs = [winningRecipe.id]
+        session.winnerID = winningRecipe.id
+        session.stage = .ticketLocked
+        session.stepIndex = 0
+        session.checkedIngredientIDs = []
+        session.missingIngredientIDs = []
+        session.completedStepIDs = []
+        session.timerEnd = nil
+        session.timerTitle = nil
+        hasOnboarded = true
+        show("Locked kitchen ticket for \(winningRecipe.title) 🧾")
+        save()
+    }
+
+    func checkPendingChatPollHandoff() {
+        if let poll = SharedKitchenContainer.consumePendingChatPoll() {
+            importCompletedChatPoll(poll)
+        }
     }
 
     func newDinner() {
@@ -621,6 +717,7 @@ final class OrderHomeStore {
             let data = try Self.sharedEncoder.encode(snapshot)
             try data.write(to: persistenceURL, options: .atomic)
             persistenceError = nil
+            syncLiveActivity()
         } catch {
             persistenceError = "Your changes are available now, but could not be saved on this device. \(error.localizedDescription)"
         }
@@ -748,9 +845,7 @@ final class OrderHomeStore {
         Member(id: "owner", name: "You", emoji: "👩‍🍳", role: "Head Chef", dietaryNotes: "", attending: true)
     }
     private static var defaultPersistenceURL: URL {
-        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
-            ?? FileManager.default.temporaryDirectory
-        return base.appendingPathComponent("OrderHome", isDirectory: true).appendingPathComponent("kitchen.json")
+        SharedKitchenContainer.kitchenFileURL
     }
 
     private static func validatedRecipeURL(_ url: URL) -> URL? {
@@ -782,5 +877,305 @@ final class OrderHomeStore {
         /// Optional and lossy, so saves from before history existed still open
         /// and a damaged entry can never cost someone their kitchen.
         var history: LossyList<DinnerRecord>?
+    }
+
+    private func syncLiveActivity() {
+        #if canImport(ActivityKit)
+        if let winner {
+            let totalSteps = max(1, winner.steps.count)
+            let currentStepIdx = min(session.stepIndex, totalSteps - 1)
+            let stepTitle = winner.steps.indices.contains(currentStepIdx) ? winner.steps[currentStepIdx].title : "Preparing dinner"
+            KitchenLiveActivityManager.shared.sync(
+                dinnerID: session.id,
+                recipeTitle: winner.title,
+                recipeEmoji: PollDishMenu.emoji(for: winner.id),
+                servings: max(1, dinerCount),
+                stage: session.stage,
+                stepIndex: session.stepIndex,
+                totalSteps: totalSteps,
+                stepTitle: stepTitle,
+                timerEnd: session.timerEnd
+            )
+        } else {
+            KitchenLiveActivityManager.shared.endAll()
+        }
+        #endif
+    }
+
+    // MARK: - Manual Recipe Text Parsing
+
+    static func parseIngredientLines(_ text: String) -> [Ingredient] {
+        let lines = text.components(separatedBy: .newlines)
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+        return lines.enumerated().map { index, line in
+            parseSingleIngredientLine(line, id: "ing-\(index + 1)")
+        }
+    }
+
+    private static func parseSingleIngredientLine(_ line: String, id: String) -> Ingredient {
+        let cleaned = line
+            .replacingOccurrences(of: "½", with: " 0.5 ")
+            .replacingOccurrences(of: "⅓", with: " 0.333 ")
+            .replacingOccurrences(of: "⅔", with: " 0.667 ")
+            .replacingOccurrences(of: "¼", with: " 0.25 ")
+            .replacingOccurrences(of: "¾", with: " 0.75 ")
+            .replacingOccurrences(of: "⅛", with: " 0.125 ")
+            .replacingOccurrences(of: "⅜", with: " 0.375 ")
+            .replacingOccurrences(of: "⅝", with: " 0.625 ")
+            .replacingOccurrences(of: "⅞", with: " 0.875 ")
+
+        let tokens = cleaned.split(separator: " ").map(String.init)
+        guard !tokens.isEmpty else {
+            return Ingredient(id: id, name: line, amount: 1, unit: "")
+        }
+
+        var amount: Double = 0
+        var tokenIdx = 0
+
+        if let val = Double(tokens[0]) {
+            amount = val
+            tokenIdx = 1
+            if tokens.count > 1, tokens[1].contains("/"), let frac = parseFraction(tokens[1]) {
+                amount += frac
+                tokenIdx = 2
+            }
+        } else if tokens[0].contains("/"), let frac = parseFraction(tokens[0]) {
+            amount = frac
+            tokenIdx = 1
+        }
+
+        let commonUnits: Set<String> = [
+            "cup", "cups", "tbsp", "tablespoon", "tablespoons", "tsp", "teaspoon", "teaspoons",
+            "oz", "ounce", "ounces", "lb", "lbs", "pound", "pounds", "g", "gram", "grams",
+            "kg", "ml", "clove", "cloves", "can", "cans", "pinch", "dash", "slice", "slices",
+            "piece", "pieces", "stalk", "stalks", "sprig", "sprigs", "bunch", "bunches", "head", "heads"
+        ]
+
+        var unit = ""
+        if tokenIdx < tokens.count {
+            let candidateUnit = tokens[tokenIdx].lowercased().trimmingCharacters(in: CharacterSet(charactersIn: ".,"))
+            if commonUnits.contains(candidateUnit) {
+                unit = candidateUnit
+                tokenIdx += 1
+            }
+        }
+
+        let name = tokens[tokenIdx...].joined(separator: " ")
+        return Ingredient(
+            id: id,
+            name: name.isEmpty ? line : name,
+            amount: amount > 0 ? amount : 1.0,
+            unit: unit
+        )
+    }
+
+    private static func parseFraction(_ string: String) -> Double? {
+        let parts = string.split(separator: "/").compactMap { Double($0) }
+        guard parts.count == 2, parts[1] != 0 else { return nil }
+        return parts[0] / parts[1]
+    }
+
+    static func parseStepLines(_ text: String) -> [RecipeStep] {
+        let lines = text.components(separatedBy: .newlines)
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+        return lines.enumerated().map { index, rawLine in
+            var cleaned = rawLine
+            if let range = cleaned.range(of: "^(Step\\s*\\d+[:.-]?|\\d+[.)-]|[-*])\\s*", options: .regularExpression) {
+                cleaned.removeSubrange(range)
+            }
+            cleaned = cleaned.trimmingCharacters(in: .whitespacesAndNewlines)
+
+            let title: String
+            if let periodIdx = cleaned.firstIndex(of: ".") {
+                let firstSentence = String(cleaned[..<periodIdx])
+                title = firstSentence.count <= 45 ? firstSentence : String(cleaned.prefix(35)) + "…"
+            } else {
+                title = cleaned.count <= 40 ? cleaned : String(cleaned.prefix(35)) + "…"
+            }
+
+            var timerSeconds: Int? = nil
+            if let match = cleaned.range(of: "(\\d+)\\s*(min|minute|minutes)", options: .caseInsensitive) {
+                let snippet = String(cleaned[match])
+                let digits = snippet.components(separatedBy: CharacterSet.decimalDigits.inverted).joined()
+                if let mins = Int(digits), mins > 0, mins <= 360 {
+                    timerSeconds = mins * 60
+                }
+            }
+
+            return RecipeStep(
+                id: "step-\(index + 1)",
+                title: title.isEmpty ? "Step \(index + 1)" : title,
+                instruction: cleaned,
+                timerSeconds: timerSeconds
+            )
+        }
+    }
+
+    // MARK: - Smart Dietary Conflict Warnings
+
+    struct DietaryWarning: Identifiable, Hashable {
+        var id: String { "\(memberName)-\(tag)-\(ingredientName)" }
+        var memberName: String
+        var tag: String
+        var ingredientName: String
+        var message: String
+    }
+
+    func dietaryWarnings(for recipe: Recipe) -> [DietaryWarning] {
+        var warnings: [DietaryWarning] = []
+        let attendees = activeMembers
+        guard !attendees.isEmpty, !recipe.ingredients.isEmpty else { return [] }
+
+        let glutenKeywords = ["pasta", "spaghetti", "rigatoni", "flour", "wheat", "bread", "soy sauce", "noodle", "noodles", "barley"]
+        let dairyKeywords = ["cheese", "parmesan", "mozzarella", "ricotta", "cream", "milk", "butter", "yogurt", "ghee"]
+        let meatKeywords = ["chicken", "beef", "pork", "bacon", "meat", "steak", "turkey", "lamb", "prosciutto", "sausage", "ham"]
+        let fishKeywords = ["salmon", "fish", "tuna", "cod", "anchovy", "halibut", "trout"]
+        let shellfishKeywords = ["shrimp", "prawn", "crab", "lobster", "clam", "mussel", "oyster", "scallop"]
+        let nutKeywords = ["peanut", "almond", "cashew", "walnut", "pecan", "hazelnut", "pistachio", "nut"]
+
+        for member in attendees {
+            let notes = member.dietaryNotes.lowercased()
+            guard !notes.isEmpty else { continue }
+
+            let hasGlutenFree = notes.contains("gluten") || notes.contains("celiac")
+            let hasDairyFree = notes.contains("dairy") || notes.contains("lactose")
+            let isVegetarian = notes.contains("vegetarian")
+            let isVegan = notes.contains("vegan")
+            let hasNutAllergy = notes.contains("nut") || notes.contains("peanut")
+            let hasShellfishAllergy = notes.contains("shellfish")
+
+            for ingredient in recipe.ingredients {
+                let name = ingredient.name.lowercased()
+
+                if hasGlutenFree, let match = glutenKeywords.first(where: { name.contains($0) }) {
+                    warnings.append(DietaryWarning(
+                        memberName: member.name, tag: "Gluten-Free", ingredientName: ingredient.name,
+                        message: "\(member.name) eats gluten-free, but this dish calls for \(match)."
+                    ))
+                }
+                if hasDairyFree, let match = dairyKeywords.first(where: { name.contains($0) }) {
+                    warnings.append(DietaryWarning(
+                        memberName: member.name, tag: "Dairy-Free", ingredientName: ingredient.name,
+                        message: "\(member.name) eats dairy-free, but this dish calls for \(match)."
+                    ))
+                }
+                if (isVegetarian || isVegan), let match = meatKeywords.first(where: { name.contains($0) }) {
+                    warnings.append(DietaryWarning(
+                        memberName: member.name, tag: isVegan ? "Vegan" : "Vegetarian", ingredientName: ingredient.name,
+                        message: "\(member.name) is \(isVegan ? "vegan" : "vegetarian"), but this calls for \(match)."
+                    ))
+                }
+                if (isVegetarian || isVegan), let match = fishKeywords.first(where: { name.contains($0) }) {
+                    warnings.append(DietaryWarning(
+                        memberName: member.name, tag: isVegan ? "Vegan" : "Vegetarian", ingredientName: ingredient.name,
+                        message: "\(member.name) is \(isVegan ? "vegan" : "vegetarian"), but this calls for \(match)."
+                    ))
+                }
+                if isVegan, let match = dairyKeywords.first(where: { name.contains($0) }) {
+                    warnings.append(DietaryWarning(
+                        memberName: member.name, tag: "Vegan", ingredientName: ingredient.name,
+                        message: "\(member.name) is vegan, but this dish calls for \(match)."
+                    ))
+                }
+                if hasNutAllergy, let match = nutKeywords.first(where: { name.contains($0) }) {
+                    warnings.append(DietaryWarning(
+                        memberName: member.name, tag: "Nut Allergy", ingredientName: ingredient.name,
+                        message: "⚠️ \(member.name) has a nut allergy, and this calls for \(match)."
+                    ))
+                }
+                if hasShellfishAllergy, let match = shellfishKeywords.first(where: { name.contains($0) }) {
+                    warnings.append(DietaryWarning(
+                        memberName: member.name, tag: "Shellfish Allergy", ingredientName: ingredient.name,
+                        message: "⚠️ \(member.name) has a shellfish allergy, and this calls for \(match)."
+                    ))
+                }
+            }
+        }
+        return warnings
+    }
+
+    // MARK: - Family Food Stats ("Dinner Wrapped")
+
+    struct DinerFrequency: Equatable, Identifiable {
+        var id: String { name }
+        var name: String
+        var emoji: String
+        var count: Int
+    }
+
+    struct FamilyFoodStats: Equatable {
+        var dinnersCookedCount: Int
+        var favoriteRecipeCount: Int
+        var averageCookMinutes: Int
+        var averageRating: Double
+        var totalRatingsCount: Int
+        var topCookedRecipe: Recipe?
+        var topCookedCount: Int
+        var dinerFrequencies: [DinerFrequency]
+    }
+
+    var foodStats: FamilyFoodStats {
+        let total = history.count
+        guard total > 0 else {
+            return FamilyFoodStats(
+                dinnersCookedCount: 0,
+                favoriteRecipeCount: favoriteIDs.count,
+                averageCookMinutes: 0,
+                averageRating: 0.0,
+                totalRatingsCount: 0,
+                topCookedRecipe: nil,
+                topCookedCount: 0,
+                dinerFrequencies: []
+            )
+        }
+        var dishCounts: [String: Int] = [:]
+        var totalMinutes = 0
+        var minutesCount = 0
+        var dinerCounts: [String: Int] = [:]
+        var totalRatingScore = 0.0
+        var ratingsCount = 0
+
+        for record in history {
+            dishCounts[record.recipeID, default: 0] += 1
+            if let r = recipe(for: record.recipeID), r.minutes > 0 {
+                totalMinutes += r.minutes
+                minutesCount += 1
+            }
+            for name in record.dinerNames {
+                dinerCounts[name, default: 0] += 1
+            }
+            for r in record.allRatings {
+                ratingsCount += 1
+                switch r {
+                case .loved: totalRatingScore += 5.0
+                case .good: totalRatingScore += 4.0
+                case .tweak: totalRatingScore += 3.0
+                }
+            }
+        }
+
+        let topDishEntry = dishCounts.max(by: { $0.value < $1.value })
+        let topDishRecipe = topDishEntry.flatMap { recipe(for: $0.key) }
+        let topDishCount = topDishEntry?.value ?? 0
+        let avgMinutes = minutesCount > 0 ? (totalMinutes / minutesCount) : 0
+        let avgRating = ratingsCount > 0 ? (totalRatingScore / Double(ratingsCount)) : 0.0
+
+        let memberEmojis = Dictionary(household.members.map { ($0.name, $0.emoji) }, uniquingKeysWith: { first, _ in first })
+        let frequencies = dinerCounts.map { (name, count) in
+            DinerFrequency(name: name, emoji: memberEmojis[name] ?? "🥑", count: count)
+        }.sorted { $0.count > $1.count }
+
+        return FamilyFoodStats(
+            dinnersCookedCount: total,
+            favoriteRecipeCount: favoriteIDs.count,
+            averageCookMinutes: avgMinutes,
+            averageRating: avgRating,
+            totalRatingsCount: ratingsCount,
+            topCookedRecipe: topDishRecipe,
+            topCookedCount: topDishCount,
+            dinerFrequencies: frequencies
+        )
     }
 }

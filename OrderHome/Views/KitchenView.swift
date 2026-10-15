@@ -1,5 +1,6 @@
 import SwiftUI
 import UIKit
+import WebKit
 
 @MainActor
 struct KitchenView: View {
@@ -8,6 +9,7 @@ struct KitchenView: View {
     @State private var servingOverride: Int?
     @State private var studioTab: StudioTab = .steps
     @State private var originalIdleTimerSetting: Bool?
+    @State private var editingRecipe: Recipe?
 
     private enum StudioTab: String, CaseIterable {
         case steps = "Step by step"
@@ -52,6 +54,9 @@ struct KitchenView: View {
         .onChange(of: store.session.id) { _, _ in
             servingOverride = nil
             studioTab = .steps
+        }
+        .sheet(item: $editingRecipe) { recipe in
+            RecipeDetailsEditorSheet(recipe: recipe)
         }
     }
 
@@ -127,6 +132,16 @@ struct KitchenView: View {
             VStack(alignment: .leading, spacing: 24) {
                 screenHeading("Your order is in.", eyebrow: "THE KITCHEN TICKET", detail: "A good meal. A happy table. Let’s make it happen.")
                 receipt(recipe)
+
+                if let videoID = recipe.youtubeVideoID {
+                    inlineVideoCard(videoID: videoID, recipe: recipe)
+                }
+
+                let warnings = store.dietaryWarnings(for: recipe)
+                if !warnings.isEmpty {
+                    dietaryWarningsCard(warnings)
+                }
+
                 if recipe.ingredients.isEmpty {
                     originalRecipeCard(recipe)
                 } else {
@@ -135,6 +150,9 @@ struct KitchenView: View {
                         groceryHandoff(recipe)
                     }
                 }
+
+                recipeEditorButton(recipe)
+
                 if let source = recipe.sourceURL, !recipe.ingredients.isEmpty {
                     Link(destination: source) {
                         Label("Open original recipe", systemImage: "arrow.up.right.square")
@@ -442,6 +460,15 @@ struct KitchenView: View {
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 22) {
+                    if let videoID = recipe.youtubeVideoID {
+                        inlineVideoCard(videoID: videoID, recipe: recipe)
+                    }
+
+                    let warnings = store.dietaryWarnings(for: recipe)
+                    if !warnings.isEmpty {
+                        dietaryWarningsCard(warnings)
+                    }
+
                     if studioTab == .steps {
                         cookingSteps(recipe)
                     } else if recipe.ingredients.isEmpty {
@@ -452,6 +479,8 @@ struct KitchenView: View {
                             groceryHandoff(recipe)
                         }
                     }
+
+                    recipeEditorButton(recipe)
                 }
                 .padding(.horizontal, 24)
                 .padding(.bottom, 24)
@@ -787,11 +816,271 @@ struct KitchenView: View {
         return "\(seconds / 60) min \(seconds % 60) sec"
     }
 
+    private func inlineVideoCard(videoID: String, recipe: Recipe) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Label("WATCH & COOK INLINE", systemImage: "play.rectangle.fill")
+                    .font(.system(size: 10, weight: .bold, design: .monospaced))
+                    .tracking(1.4)
+                    .foregroundStyle(OHTheme.accent)
+                Spacer()
+                if let source = recipe.sourceURL {
+                    Link(destination: source) {
+                        Label("YouTube", systemImage: "arrow.up.right")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(OHTheme.muted)
+                    }
+                }
+            }
+            InlineYouTubePlayer(videoID: videoID)
+                .frame(height: 220)
+                .clipShape(RoundedRectangle(cornerRadius: 18))
+                .overlay(RoundedRectangle(cornerRadius: 18).stroke(OHTheme.line, lineWidth: 1))
+        }
+        .padding(16)
+        .background(.white, in: RoundedRectangle(cornerRadius: 22))
+    }
+
+    private func dietaryWarningsCard(_ warnings: [OrderHomeStore.DietaryWarning]) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
+                Image(systemName: "exclamationmark.shield.fill")
+                    .font(.subheadline)
+                    .foregroundStyle(OHTheme.accent)
+                Text("TABLE DIETARY CAUTION")
+                    .font(.system(size: 10, weight: .bold, design: .monospaced))
+                    .tracking(1.4)
+                    .foregroundStyle(OHTheme.accent)
+            }
+            ForEach(warnings) { warning in
+                HStack(alignment: .top, spacing: 10) {
+                    Image(systemName: "hand.raised.fill")
+                        .font(.caption)
+                        .foregroundStyle(OHTheme.accent)
+                        .padding(.top, 2)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(warning.message)
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(OHTheme.ink)
+                        Text("\(warning.tag) · Ingredient: \(warning.ingredientName)")
+                            .font(.caption)
+                            .foregroundStyle(OHTheme.muted)
+                    }
+                }
+            }
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(OHTheme.accent.opacity(0.08), in: RoundedRectangle(cornerRadius: 18))
+        .overlay(RoundedRectangle(cornerRadius: 18).stroke(OHTheme.accent.opacity(0.2), lineWidth: 1))
+    }
+
+    private func recipeEditorButton(_ recipe: Recipe) -> some View {
+        Button {
+            editingRecipe = recipe
+        } label: {
+            HStack {
+                Image(systemName: "square.and.pencil")
+                Text(recipe.ingredients.isEmpty ? "Add Ingredients & Cooking Steps" : "Edit Recipe Ingredients & Steps")
+                Spacer()
+                Image(systemName: "chevron.right")
+            }
+            .font(.subheadline.weight(.semibold))
+            .foregroundStyle(OHTheme.ink)
+            .padding(16)
+            .background(.white, in: RoundedRectangle(cornerRadius: 16))
+            .overlay(RoundedRectangle(cornerRadius: 16).stroke(OHTheme.line, lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+    }
+
     private func countdown(_ seconds: Int) -> String {
         if seconds >= 3_600 {
             return String(format: "%d:%02d:%02d", seconds / 3_600, seconds % 3_600 / 60, seconds % 60)
         }
         return String(format: "%02d:%02d", seconds / 60, seconds % 60)
+    }
+}
+
+struct InlineYouTubePlayer: UIViewRepresentable {
+    let videoID: String
+
+    func makeUIView(context: Context) -> WKWebView {
+        let configuration = WKWebViewConfiguration()
+        configuration.allowsInlineMediaPlayback = true
+        configuration.mediaTypesRequiringUserActionForPlayback = []
+        let webView = WKWebView(frame: .zero, configuration: configuration)
+        webView.scrollView.isScrollEnabled = false
+        webView.backgroundColor = .black
+        webView.isOpaque = false
+        loadVideo(in: webView)
+        return webView
+    }
+
+    func updateUIView(_ uiView: WKWebView, context: Context) {
+        // Maintained
+    }
+
+    private func loadVideo(in webView: WKWebView) {
+        let embedHTML = """
+        <!DOCTYPE html>
+        <html>
+        <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+        <style>
+          * { margin: 0; padding: 0; box-sizing: border-box; background-color: #000; }
+          html, body { width: 100%; height: 100%; overflow: hidden; }
+          iframe { width: 100%; height: 100%; border: none; }
+        </style>
+        </head>
+        <body>
+          <iframe src="https://www.youtube-nocookie.com/embed/\(videoID)?playsinline=1&rel=0&modestbranding=1" 
+                  frameborder="0" 
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                  allowfullscreen>
+          </iframe>
+        </body>
+        </html>
+        """
+        webView.loadHTMLString(embedHTML, baseURL: URL(string: "https://www.youtube-nocookie.com"))
+    }
+}
+
+struct RecipeDetailsEditorSheet: View {
+    @Environment(OrderHomeStore.self) private var store
+    @Environment(\.dismiss) private var dismiss
+    let recipe: Recipe
+
+    @State private var minutes: Int
+    @State private var ingredientLines: String
+    @State private var stepLines: String
+
+    init(recipe: Recipe) {
+        self.recipe = recipe
+        _minutes = State(initialValue: max(0, recipe.minutes))
+        let initialIngredients = recipe.ingredients.map { ing in
+            if ing.amount <= 0 {
+                return ing.name
+            } else {
+                let amountStr = ing.amount.truncatingRemainder(dividingBy: 1) == 0 ? "\(Int(ing.amount))" : "\(ing.amount)"
+                if ing.unit.isEmpty {
+                    return "\(amountStr) \(ing.name)"
+                } else {
+                    return "\(amountStr) \(ing.unit) \(ing.name)"
+                }
+            }
+        }.joined(separator: "\n")
+        _ingredientLines = State(initialValue: initialIngredients)
+        _stepLines = State(initialValue: recipe.steps.map(\.instruction).joined(separator: "\n"))
+    }
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 22) {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("RECIPE STUDIO")
+                            .font(.system(size: 10, weight: .bold, design: .monospaced))
+                            .tracking(1.4)
+                            .foregroundStyle(OHTheme.accent)
+                        Text(recipe.title)
+                            .font(.system(size: 24, weight: .regular, design: .serif))
+                            .foregroundStyle(OHTheme.ink)
+                        Text("Add or customize cooking time, ingredients, and steps for portion scaling and timers.")
+                            .font(.caption)
+                            .foregroundStyle(OHTheme.muted)
+                    }
+
+                    VStack(alignment: .leading, spacing: 10) {
+                        Eyebrow(text: "COOK TIME (MINUTES)")
+                        HStack(spacing: 12) {
+                            TextField("Minutes", value: $minutes, format: .number)
+                                .keyboardType(.numberPad)
+                                .font(.system(size: 16, weight: .medium))
+                                .padding(14)
+                                .background(.white, in: RoundedRectangle(cornerRadius: 14))
+                            Stepper("", value: $minutes, in: 0...300, step: 5)
+                                .labelsHidden()
+                        }
+                    }
+
+                    VStack(alignment: .leading, spacing: 10) {
+                        HStack {
+                            Eyebrow(text: "INGREDIENTS (ONE PER LINE)")
+                            Spacer()
+                            Text("\(ingredientCount) items")
+                                .font(.caption2)
+                                .foregroundStyle(OHTheme.muted)
+                        }
+                        TextEditor(text: $ingredientLines)
+                            .font(.system(size: 14))
+                            .frame(minHeight: 130)
+                            .padding(12)
+                            .background(.white, in: RoundedRectangle(cornerRadius: 14))
+                            .overlay(RoundedRectangle(cornerRadius: 14).stroke(OHTheme.line, lineWidth: 1))
+                        Text("Example:\n1 lb penne pasta\n2 cups marinara sauce\n½ cup grated parmesan\n1 pinch red pepper flakes")
+                            .font(.caption2)
+                            .foregroundStyle(OHTheme.muted)
+                    }
+
+                    VStack(alignment: .leading, spacing: 10) {
+                        HStack {
+                            Eyebrow(text: "COOKING STEPS (ONE PER LINE)")
+                            Spacer()
+                            Text("\(stepCount) steps")
+                                .font(.caption2)
+                                .foregroundStyle(OHTheme.muted)
+                        }
+                        TextEditor(text: $stepLines)
+                            .font(.system(size: 14))
+                            .frame(minHeight: 130)
+                            .padding(12)
+                            .background(.white, in: RoundedRectangle(cornerRadius: 14))
+                            .overlay(RoundedRectangle(cornerRadius: 14).stroke(OHTheme.line, lineWidth: 1))
+                        Text("Tip: include numbers like “boil for 10 minutes” to automatically create kitchen timers.")
+                            .font(.caption2)
+                            .foregroundStyle(OHTheme.muted)
+                    }
+
+                    PrimaryButton(title: "Save recipe details", systemImage: "checkmark") {
+                        store.updateRecipe(
+                            id: recipe.id,
+                            title: recipe.title,
+                            minutes: minutes,
+                            ingredientLines: ingredientLines,
+                            stepLines: stepLines
+                        )
+                        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                        dismiss()
+                    }
+                }
+                .padding(24)
+            }
+            .background(OHTheme.background)
+            .navigationTitle("Edit Recipe")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+            }
+        }
+    }
+
+    private var ingredientCount: Int {
+        ingredientLines
+            .split(whereSeparator: \.isNewline)
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+            .count
+    }
+
+    private var stepCount: Int {
+        stepLines
+            .split(whereSeparator: \.isNewline)
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+            .count
     }
 }
 

@@ -70,7 +70,7 @@ private struct ComposePollView: View {
                         .font(.subheadline).foregroundStyle(PollTheme.muted)
                 }
                 VStack(spacing: 10) {
-                    ForEach(PollDishMenu.all) { entry in dishRow(entry) }
+                    ForEach(PollDishMenu.allHouseholdDishes) { entry in dishRow(entry) }
                 }
                 VStack(alignment: .leading, spacing: 10) {
                     Text("VOTES LOCK IN").font(.caption.weight(.bold)).tracking(1.5).foregroundStyle(PollTheme.muted)
@@ -292,12 +292,25 @@ private struct PollDetailView: View {
                 }
                 .padding(14).background(.white, in: RoundedRectangle(cornerRadius: 14))
             }
-            Button { model.openOrderHome() } label: {
-                Text("Open Order Home").font(.headline).foregroundStyle(PollTheme.accent)
-                    .frame(maxWidth: .infinity).padding(.vertical, 14)
-                    .background(PollTheme.accent.opacity(0.1), in: RoundedRectangle(cornerRadius: 14))
+            if poll.leader != nil {
+                Button { model.openKitchenTicket(for: poll) } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "receipt")
+                        Text("Open Kitchen Ticket in Order Home").font(.headline)
+                    }
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity).padding(.vertical, 15)
+                    .background(PollTheme.accent, in: RoundedRectangle(cornerRadius: 14))
+                }
+                .buttonStyle(.plain)
+            } else {
+                Button { model.openOrderHome() } label: {
+                    Text("Open Order Home").font(.headline).foregroundStyle(PollTheme.accent)
+                        .frame(maxWidth: .infinity).padding(.vertical, 14)
+                        .background(PollTheme.accent.opacity(0.1), in: RoundedRectangle(cornerRadius: 14))
+                }
+                .buttonStyle(.plain)
             }
-            .buttonStyle(.plain)
         }
     }
 }

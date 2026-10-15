@@ -27,8 +27,22 @@ struct OrderHomeApp: App {
                 await Task.yield()
                 await cloud.restore()
             }
-            .onOpenURL { _ = cloud.handleURL($0) }
-            .onChange(of: scenePhase) { _, phase in cloud.setApplicationActive(phase == .active) }
+            .onOpenURL { url in
+                if cloud.handleURL(url) { return }
+                if url.scheme == "orderhome" && url.host == "poll" {
+                    if case .poll(let poll) = ChatPoll.decode(url) {
+                        store.importCompletedChatPoll(poll)
+                    } else {
+                        store.checkPendingChatPollHandoff()
+                    }
+                }
+            }
+            .onChange(of: scenePhase) { _, phase in
+                cloud.setApplicationActive(phase == .active)
+                if phase == .active {
+                    store.checkPendingChatPollHandoff()
+                }
+            }
             .onChange(of: store.session.timerEnd) { _, end in
                 if end == nil { KitchenNotifications.shared.cancelTimer() }
             }
