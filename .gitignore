@@ -1,0 +1,12 @@
+.DS_Store
+DerivedData/
+build/
+*.xcuserstate
+xcuserdata/
+.swiftpm/
+.env
+.env.*
+!.env.example
+
+# Supabase CLI local scratch
+supabase/.temp/
