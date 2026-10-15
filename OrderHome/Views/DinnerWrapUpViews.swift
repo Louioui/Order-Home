@@ -13,7 +13,7 @@ struct DinnerRatingCard: View {
                 .foregroundStyle(OHTheme.ink)
             Text("A quick word from everyone who ate. Loved dishes join your House Menu.")
                 .font(.subheadline).foregroundStyle(OHTheme.muted)
-            ForEach(store.activeMembers) { member in
+            ForEach(store.dinersAtTable) { member in
                 HStack(spacing: 12) {
                     MemberAvatar(member: member, size: 38)
                     Text(member.name)

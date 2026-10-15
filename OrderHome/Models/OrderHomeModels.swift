@@ -190,6 +190,10 @@ struct DinnerRecord: Identifiable, Codable, Equatable {
     var recipeTitle: String
     var servedAt: Date
     var dinerNames: [String]
+    /// Ids of the people who were at the table, so only they can rate this dinner
+    /// even if the household changes afterwards. Optional so records saved before
+    /// this field existed still load; those fall back to who is attending now.
+    var dinerIDs: [String]?
     /// Member id to `DinnerRating.rawValue`. Raw strings, so a rating a future
     /// version adds is ignored here instead of failing the whole save file.
     var ratings: [String: String]

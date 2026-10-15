@@ -253,6 +253,15 @@ final class OrderHomeStore {
         currentDinnerRecord?.rating(for: memberID)
     }
 
+    /// The people who ate the dinner on the table. Once the dinner is recorded
+    /// this is fixed to who was there, so someone added or marked as attending
+    /// afterwards cannot rate a meal they did not eat. A dinner without a
+    /// recorded table (served before history existed) uses who is attending now.
+    var dinersAtTable: [Member] {
+        guard let ids = currentDinnerRecord?.dinerIDs else { return activeMembers }
+        return household.members.filter { ids.contains($0.id) }
+    }
+
     func servedCount(of recipeID: String) -> Int {
         history.filter { $0.recipeID == recipeID }.count
     }
@@ -267,7 +276,7 @@ final class OrderHomeStore {
     /// rating never removes a favorite.
     func rateDinner(_ rating: DinnerRating, memberID: String) {
         guard !isSharedPresentation else { show("Use your connected kitchen to make this change."); return }
-        guard session.stage == .served, activeMembers.contains(where: { $0.id == memberID }),
+        guard session.stage == .served, dinersAtTable.contains(where: { $0.id == memberID }),
               let winner, let index = recordServedDinner() else { return }
         let wasKeeper = isKeeper(history[index])
         if history[index].ratings[memberID] == rating.rawValue {
@@ -295,7 +304,7 @@ final class OrderHomeStore {
         if let existing = history.firstIndex(where: { $0.id == session.id }) { return existing }
         history.insert(DinnerRecord(
             id: session.id, recipeID: winner.id, recipeTitle: winner.title, servedAt: Date(),
-            dinerNames: activeMembers.map(\.name), ratings: [:]
+            dinerNames: activeMembers.map(\.name), dinerIDs: activeMembers.map(\.id), ratings: [:]
         ), at: 0)
         if history.count > Self.historyLimit { history.removeLast(history.count - Self.historyLimit) }
         return 0

@@ -56,6 +56,7 @@ final class DinnerHistoryTests: XCTestCase {
         XCTAssertEqual(record.recipeID, store.winner?.id)
         XCTAssertEqual(record.recipeTitle, store.winner?.title)
         XCTAssertEqual(record.dinerNames, ["You"])
+        XCTAssertEqual(record.dinerIDs, ["owner"])
         XCTAssertEqual(record.servedAt.timeIntervalSinceNow, 0, accuracy: 5)
         XCTAssertEqual(store.currentDinnerRecord, record)
 
@@ -115,6 +116,58 @@ final class DinnerHistoryTests: XCTestCase {
         serveDinner(on: store)
         store.rateDinner(.loved, memberID: "stranger")
         XCTAssertTrue(store.currentDinnerRecord?.ratings.isEmpty == true)
+    }
+
+    @MainActor
+    func testOnlyThePeopleAtTheTableCanRateAndLaterChangesDoNotChangeWho() throws {
+        let store = OrderHomeStore(persistenceURL: newPersistenceURL())
+        store.addMember(name: "Guest", emoji: "🍽️", role: "Diner")
+        let guest = try XCTUnwrap(store.household.members.last)
+        store.nominate(RecipeCatalog.all[0])
+        store.nominate(RecipeCatalog.all[1])
+        store.startVoting()
+        for member in store.household.members {
+            store.selectedMemberID = member.id
+            store.vote(.love, for: store.pitches[0].id)
+            store.vote(.down, for: store.pitches[1].id)
+        }
+        store.startCooking()
+        store.ringDinnerBell()
+        let record = try XCTUnwrap(store.currentDinnerRecord)
+        XCTAssertEqual(Set(try XCTUnwrap(record.dinerIDs)), ["owner", guest.id])
+
+        // Someone joins the household after dinner was served and defaults to attending...
+        store.addMember(name: "Latecomer", emoji: "🍽️", role: "Diner")
+        let latecomer = try XCTUnwrap(store.household.members.last)
+        XCTAssertTrue(store.activeMembers.contains { $0.id == latecomer.id })
+        XCTAssertEqual(Set(store.dinersAtTable.map(\.id)), ["owner", guest.id])
+        store.rateDinner(.loved, memberID: latecomer.id)
+        XCTAssertNil(store.rating(for: latecomer.id), "A person who was not at the table cannot rate this dinner")
+
+        // ...while a guest who leaves the table afterwards can still rate the meal they ate.
+        store.setAttendance(memberID: guest.id, attending: false)
+        XCTAssertEqual(Set(store.dinersAtTable.map(\.id)), ["owner", guest.id])
+        store.rateDinner(.good, memberID: guest.id)
+        XCTAssertEqual(store.rating(for: guest.id), .good)
+    }
+
+    @MainActor
+    func testDinnersRecordedBeforeTableIDsExistedStillLoadAndFallBackToTheCurrentTable() throws {
+        let url = newPersistenceURL()
+        let store = OrderHomeStore(persistenceURL: url)
+        serveDinner(on: store)
+        try editSave(at: url) { object in
+            var entries = (object["history"] as? [[String: Any]]) ?? []
+            for index in entries.indices { entries[index].removeValue(forKey: "dinerIDs") }
+            object["history"] = entries
+        }
+        let restored = OrderHomeStore(persistenceURL: url)
+        XCTAssertNil(restored.persistenceError)
+        let record = try XCTUnwrap(restored.currentDinnerRecord)
+        XCTAssertNil(record.dinerIDs)
+        XCTAssertEqual(restored.dinersAtTable.map(\.id), ["owner"], "Falls back to who is attending now")
+        restored.rateDinner(.loved, memberID: "owner")
+        XCTAssertEqual(restored.rating(for: "owner"), .loved)
     }
 
     @MainActor
