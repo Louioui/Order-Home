@@ -54,9 +54,12 @@ final class CloudKitchenController {
         (!store.currentMember.attending || store.hasReactedToAll(memberID: store.selectedMemberID))
     }
 
-    init(service: any KitchenCloudService = SupabaseKitchenService(), store: OrderHomeStore,
+    /// `service` defaults to the Supabase client. The default is created in the
+    /// body rather than as a default argument, because default arguments are not
+    /// main-actor isolated and the client's initializer is.
+    init(service: (any KitchenCloudService)? = nil, store: OrderHomeStore,
          configuration: CloudConfiguration? = try? CloudConfiguration.load().get(), defaults: UserDefaults = .standard) {
-        self.service = service
+        self.service = service ?? SupabaseKitchenService()
         self.store = store
         self.configuration = configuration
         self.defaults = defaults

@@ -2,7 +2,16 @@ import SwiftUI
 
 @main
 struct OrderHomeApp: App {
-    @State private var store = OrderHomeStore()
+    @Environment(\.scenePhase) private var scenePhase
+    @State private var store: OrderHomeStore
+    @State private var cloud: CloudKitchenController
+
+    init() {
+        let store = OrderHomeStore()
+        _store = State(initialValue: store)
+        _cloud = State(initialValue: CloudKitchenController(store: store))
+    }
+
     var body: some Scene {
         WindowGroup {
             Group {
@@ -10,9 +19,13 @@ struct OrderHomeApp: App {
                 else { WelcomeView() }
             }
             .environment(store)
+            .environment(cloud)
             .tint(OHTheme.accent)
             .preferredColorScheme(.light)
             .task { KitchenNotifications.shared.installAsDelegate() }
+            .task { await cloud.restore() }
+            .onOpenURL { _ = cloud.handleURL($0) }
+            .onChange(of: scenePhase) { _, phase in cloud.setApplicationActive(phase == .active) }
             .onChange(of: store.session.timerEnd) { _, end in
                 if end == nil { KitchenNotifications.shared.cancelTimer() }
             }
