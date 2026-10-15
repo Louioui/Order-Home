@@ -22,11 +22,11 @@ xcodebuild test \
   CODE_SIGNING_ALLOWED=NO
 ```
 
-Choose an available simulator name on your Mac. No third-party Swift packages are required.
+Choose an available simulator name on your Mac. The shared-kitchen client uses one Swift package, `supabase-swift` (pinned to 2.55.4), which Xcode resolves automatically on the first build, so that build needs internet access.
 
-Verified on October 14, 2026 with Xcode 27 and an iPhone 18 Pro simulator running iOS 27: **17 tests passed, 0 failed, 0 skipped** in 31.017 seconds. The automated suite covers voting and attendance rules, couple matching, deadlines, cooking progress and timer persistence, ingredient scaling, corrupt saves, saved-link validation and persistence, and leaving the sample kitchen without affecting a personal kitchen or losing saved creator links. The optional database migration and its security/workflow smoke checks also passed against an isolated local PostgreSQL database. Hosted Supabase, physical-device signing, remote notifications, and multi-device behavior are outside those checks.
+Verified on October 14, 2026 with Xcode 27 and an iPhone 18 Pro simulator running iOS 27: **35 tests passed, 0 failed, 0 skipped** (17 dinner-workflow, 8 connected-client, and 10 dinner-history tests). The automated suite covers voting and attendance rules, couple matching, deadlines, cooking progress and timer persistence, ingredient scaling, corrupt saves, saved-link validation and persistence, leaving the sample kitchen without affecting a personal kitchen or losing saved creator links, and the dinner history and rating described below. Earlier, the optional database migration and its security/workflow smoke checks passed against an isolated local PostgreSQL database; they were not re-run for this update. Hosted Supabase, physical-device signing, remote notifications, and multi-device behavior are outside those checks.
 
-A CodeRabbit review of a 34-file source snapshot returned **0 findings**. A manual review then identified and fixed a voting-sheet transition when opening a poll was rejected. Final UI refinements and the guarded sample-kitchen exit were compiled in the passing 17-test run; that run is separate from the earlier review snapshot.
+An earlier CodeRabbit review of a 34-file source snapshot returned **0 findings**. The dinner history and rating changes have not been through a CodeRabbit review.
 
 ## What works
 
@@ -37,7 +37,8 @@ A CodeRabbit review of a 34-file source snapshot returned **0 findings**. A manu
 - **Kitchen ticket:** the winning dish, true diner count, per-person notes, scaled ingredient quantities, and missing groceries that can be shared through the system share sheet.
 - **Chef Studio:** ingredients, recipe steps, progress, a screen-awake cooking experience, and a countdown timer whose absolute end date survives closing the app. The dinner bell marks the meal served on this device.
 - **House Menu:** browse included recipes, inspect instructions, keep favorite dishes, and save secure YouTube, TikTok, or Instagram recipe links. Saved links can be nominated; their ingredients and method remain in the original source.
-- **Local persistence:** the kitchen, votes, attendance, notes, favorite recipes, ingredient checklists, and cooking progress are saved atomically in the app's Application Support directory.
+- **Dinner wrap-up and history:** once dinner is served, each person who ate gives a one-tap verdict: 😍 Loved it, 👍 It was good, or 🔄 Needs a tweak. A loved dish joins the House Menu; the rule lives in `HouseFavoritePolicy` and a rating never removes a favorite. **Past dinners** (the clock button on House menu) lists the last 60 meals with their ratings and a one-tap **Cook it again** that pitches the dish for tonight. History belongs to the kitchen on this iPhone; a connected kitchen does not record it yet, and leaving the sample kitchen clears the sample's dinners.
+- **Local persistence:** the kitchen, votes, attendance, notes, favorite recipes, dinner history, ingredient checklists, and cooking progress are saved atomically in the app's Application Support directory. Saves from before history existed still open, and a damaged history entry is skipped instead of discarding the kitchen.
 
 To save a social recipe, open **House menu**, tap **Save a recipe link**, enter a recipe name, paste a secure YouTube, TikTok, or Instagram URL, and choose **Save to my house menu**. The saved card can be nominated for tonight alongside the included dishes.
 
@@ -45,7 +46,7 @@ The photo-backed recipe collection ships inside the app. Saved social links do n
 
 ## Connected features and scope
 
-The architecture also describes a distributed product. The following require a connected implementation and deployment; the current app does not pretend to provide them:
+The architecture also describes a distributed product. The project now contains a Supabase client and shared-kitchen screens (see `docs/SharedBackend.md`), but they stay inactive until the build is given a Supabase project URL and public key; no hosted project is configured here, and the connected path has not been exercised against one. The following require a connected implementation and deployment; the current app does not pretend to provide them:
 
 | Feature | Current implementation | Remaining connection |
 | --- | --- | --- |

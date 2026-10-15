@@ -5,6 +5,7 @@ struct HouseMenuView: View {
     @State private var search = ""
     @State private var category = "All recipes"
     @State private var importingRecipe = false
+    @State private var showingHistory = false
     @State private var selectedRecipe: Recipe?
     private let categories = ["All recipes", "Favorites", "Quick & easy", "Comfort food", "Date night"]
     private var filtered: [Recipe] {
@@ -17,7 +18,7 @@ struct HouseMenuView: View {
     var body: some View {
         ScrollView(showsIndicators: false) {
             VStack(alignment: .leading, spacing: 24) {
-                HStack { BrandMark(); Spacer(); Button { importingRecipe = true } label: { Image(systemName: "link.badge.plus").font(.system(size: 20)).foregroundStyle(OHTheme.green).frame(width: 40, height: 40) }.accessibilityLabel("Save a recipe link") }
+                HStack { BrandMark(); Spacer(); Button { showingHistory = true } label: { Image(systemName: "clock.arrow.circlepath").font(.system(size: 20)).foregroundStyle(OHTheme.green).frame(width: 40, height: 40) }.accessibilityLabel("Past dinners"); Button { importingRecipe = true } label: { Image(systemName: "link.badge.plus").font(.system(size: 20)).foregroundStyle(OHTheme.green).frame(width: 40, height: 40) }.accessibilityLabel("Save a recipe link") }
                 VStack(alignment: .leading, spacing: 9) {
                     Eyebrow(text: "THE GOOD-FOOD COLLECTION")
                     Text("Your house.\nYour kind of food.").font(OHTheme.serif(38)).tracking(-1.4).foregroundStyle(OHTheme.ink)
@@ -49,6 +50,7 @@ struct HouseMenuView: View {
             }.padding(.horizontal, 24).padding(.top, 12).padding(.bottom, 28)
         }.sheet(item: $selectedRecipe) { RecipeDetailView(recipe: $0) }
         .sheet(isPresented: $importingRecipe) { RecipeImportView() }
+        .sheet(isPresented: $showingHistory) { PastDinnersView() }
     }
 }
 
@@ -154,6 +156,10 @@ struct RecipeDetailView: View {
                         TagPill(text: recipe.category)
                         Spacer()
                         Button { store.toggleFavorite(recipe.id) } label: { Label(store.favoriteIDs.contains(recipe.id) ? "Saved" : "Save recipe", systemImage: store.favoriteIDs.contains(recipe.id) ? "heart.fill" : "heart").font(.system(size: 12, weight: .semibold)).foregroundStyle(OHTheme.accent) }
+                    }
+                    if let lastServed = store.lastServed(recipe.id) {
+                        Label("Served \(store.servedCount(of: recipe.id)) \(store.servedCount(of: recipe.id) == 1 ? "time" : "times") · last \(lastServed.formatted(.relative(presentation: .named)))", systemImage: "clock.arrow.circlepath")
+                            .font(.system(size: 11)).foregroundStyle(OHTheme.muted)
                     }
                 }
                 HStack {

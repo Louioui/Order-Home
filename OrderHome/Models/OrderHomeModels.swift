@@ -156,3 +156,76 @@ struct Household: Codable, Equatable {
     var mode: HouseholdMode
     var members: [Member]
 }
+
+/// One person's verdict on a dinner after eating it.
+enum DinnerRating: String, Codable, CaseIterable, Identifiable {
+    case loved
+    case good
+    case tweak
+
+    var id: String { rawValue }
+    var title: String {
+        switch self {
+        case .loved: "Loved it"
+        case .good: "It was good"
+        case .tweak: "Needs a tweak"
+        }
+    }
+    var emoji: String {
+        switch self {
+        case .loved: "😍"
+        case .good: "👍"
+        case .tweak: "🔄"
+        }
+    }
+}
+
+/// A dinner that reached the table, kept so the House Menu can remember it.
+/// The dish title and diner names are copied in, so an entry still reads
+/// correctly if the recipe or the table later changes.
+struct DinnerRecord: Identifiable, Codable, Equatable {
+    /// The `DinnerSession` id. There is exactly one record per dinner.
+    var id: String
+    var recipeID: String
+    var recipeTitle: String
+    var servedAt: Date
+    var dinerNames: [String]
+    /// Member id to `DinnerRating.rawValue`. Raw strings, so a rating a future
+    /// version adds is ignored here instead of failing the whole save file.
+    var ratings: [String: String]
+
+    func rating(for memberID: String) -> DinnerRating? {
+        ratings[memberID].flatMap(DinnerRating.init(rawValue:))
+    }
+    var allRatings: [DinnerRating] {
+        ratings.values.compactMap(DinnerRating.init(rawValue:))
+    }
+}
+
+/// Decodes the entries it can read and drops the rest. One damaged entry, or a
+/// value that is not a list at all, must never cost someone their saved kitchen.
+struct LossyList<Element: Codable>: Codable {
+    var elements: [Element]
+
+    init(_ elements: [Element]) { self.elements = elements }
+
+    init(from decoder: Decoder) throws {
+        guard var container = try? decoder.unkeyedContainer() else { elements = []; return }
+        var decoded: [Element] = []
+        while !container.isAtEnd {
+            if let element = try? container.decode(Element.self) { decoded.append(element) }
+            // A failed decode does not advance the container, so consume the entry.
+            else { _ = try? container.decode(Skipped.self) }
+        }
+        elements = decoded
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.unkeyedContainer()
+        for element in elements { try container.encode(element) }
+    }
+
+    private struct Skipped: Decodable {
+        init(from decoder: Decoder) throws {}
+    }
+}

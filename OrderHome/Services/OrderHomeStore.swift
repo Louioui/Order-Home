@@ -14,6 +14,11 @@ final class OrderHomeStore {
     var hasOnboarded: Bool
     var toast: String?
     var persistenceError: String?
+    /// Dinners that reached the table, newest first. Belongs to the local
+    /// kitchen only: it is stashed while a shared kitchen is shown.
+    private(set) var history: [DinnerRecord] = []
+
+    static let historyLimit = 60
 
     private(set) var isSharedPresentation = false
     private var sharedSubmittedMemberIDs: Set<String> = []
@@ -190,6 +195,7 @@ final class OrderHomeStore {
         session.stage = .served
         session.timerEnd = nil
         session.timerTitle = nil
+        recordServedDinner()
         show("Order up! Dinner is on the table.")
         save()
     }
@@ -234,6 +240,65 @@ final class OrderHomeStore {
         if favoriteIDs.contains(id) { favoriteIDs.remove(id) }
         else { favoriteIDs.insert(id) }
         save()
+    }
+
+    // MARK: Dinner history
+
+    /// The record for the dinner on the table, once it has been served.
+    var currentDinnerRecord: DinnerRecord? {
+        history.first { $0.id == session.id }
+    }
+
+    func rating(for memberID: String) -> DinnerRating? {
+        currentDinnerRecord?.rating(for: memberID)
+    }
+
+    func servedCount(of recipeID: String) -> Int {
+        history.filter { $0.recipeID == recipeID }.count
+    }
+
+    func lastServed(_ recipeID: String) -> Date? {
+        history.first { $0.recipeID == recipeID }?.servedAt
+    }
+
+    /// Records how one person who ate felt about tonight's dinner. Tapping the
+    /// rating someone already gave takes it back. When the ratings become strong
+    /// enough (see `HouseFavoritePolicy`) the dish joins the House Menu; a
+    /// rating never removes a favorite.
+    func rateDinner(_ rating: DinnerRating, memberID: String) {
+        guard !isSharedPresentation else { show("Use your connected kitchen to make this change."); return }
+        guard session.stage == .served, activeMembers.contains(where: { $0.id == memberID }),
+              let winner, let index = recordServedDinner() else { return }
+        let wasKeeper = isKeeper(history[index])
+        if history[index].ratings[memberID] == rating.rawValue {
+            history[index].ratings.removeValue(forKey: memberID)
+        } else {
+            history[index].ratings[memberID] = rating.rawValue
+        }
+        if !wasKeeper, isKeeper(history[index]), !favoriteIDs.contains(winner.id) {
+            favoriteIDs.insert(winner.id)
+            show("\(winner.title) joined your House Menu.")
+        }
+        save()
+    }
+
+    private func isKeeper(_ record: DinnerRecord) -> Bool {
+        HouseFavoritePolicy.shouldSave(ratings: record.allRatings, dinerCount: record.dinerNames.count)
+    }
+
+    /// Makes sure the served dinner has exactly one record and returns its index.
+    /// Ringing the bell and rating both call this, so neither can duplicate it,
+    /// and a dinner served before history existed is recorded when first rated.
+    @discardableResult
+    private func recordServedDinner() -> Int? {
+        guard !isSharedPresentation, session.stage == .served, let winner else { return nil }
+        if let existing = history.firstIndex(where: { $0.id == session.id }) { return existing }
+        history.insert(DinnerRecord(
+            id: session.id, recipeID: winner.id, recipeTitle: winner.title, servedAt: Date(),
+            dinerNames: activeMembers.map(\.name), ratings: [:]
+        ), at: 0)
+        if history.count > Self.historyLimit { history.removeLast(history.count - Self.historyLimit) }
+        return 0
     }
 
     /// Saves a creator's original link without implying that its ingredients,
@@ -365,6 +430,7 @@ final class OrderHomeStore {
         ]
         storedOrders = ["sample-mia": "Mild spice, please", "sample-leo": "Extra rice if we have bulgogi"]
         favoriteIDs = ["bulgogi", "pasta"]
+        history = []
         hasOnboarded = true
         show("Sample table loaded. Take turns voting as Alex, Jamie, Mia and Leo.")
         save()
@@ -380,6 +446,7 @@ final class OrderHomeStore {
         session = .fresh()
         selectedMemberID = owner.id
         favoriteIDs = []
+        history = []
         storedVotes = []
         storedOrders = [:]
         toast = nil
@@ -401,7 +468,10 @@ final class OrderHomeStore {
             localStateBeforeShared = Snapshot(version: 1, household: household, session: session,
                 selectedMemberID: selectedMemberID, favoriteIDs: favoriteIDs, hasOnboarded: hasOnboarded,
                 votes: storedVotes, orders: storedOrders,
-                customRecipes: recipes.filter { recipe in !RecipeCatalog.all.contains(where: { $0.id == recipe.id }) })
+                customRecipes: recipes.filter { recipe in !RecipeCatalog.all.contains(where: { $0.id == recipe.id }) },
+                history: LossyList(history))
+            // The local kitchen's dinners must not appear under a shared kitchen.
+            history = []
         }
         let previousSession = session
         let incomingOrders = Dictionary(uniqueKeysWithValues: snapshot.orders.map { ($0.memberID, $0) })
@@ -470,6 +540,7 @@ final class OrderHomeStore {
         hasOnboarded = local.hasOnboarded
         storedVotes = local.votes
         storedOrders = local.orders
+        history = local.history?.elements ?? []
         recipes = RecipeCatalog.all + (local.customRecipes ?? [])
         sharedSubmittedMemberIDs = []
         localStateBeforeShared = nil
@@ -482,7 +553,8 @@ final class OrderHomeStore {
             version: 1, household: household, session: session,
             selectedMemberID: selectedMemberID, favoriteIDs: favoriteIDs,
             hasOnboarded: hasOnboarded, votes: storedVotes, orders: storedOrders,
-            customRecipes: recipes.filter { recipe in !RecipeCatalog.all.contains(where: { $0.id == recipe.id }) }
+            customRecipes: recipes.filter { recipe in !RecipeCatalog.all.contains(where: { $0.id == recipe.id }) },
+            history: LossyList(history)
         )
         // Shared household data stays out of the unscoped local save. Only the
         // device's personal recipe links/favorites update its saved local kitchen.
@@ -581,6 +653,10 @@ final class OrderHomeStore {
                 memberIDs.contains($0.memberID) && session.recipeIDs.contains($0.recipeID) && seenVotes.insert($0.id).inserted
             }
             storedOrders = snapshot.orders.filter { memberIDs.contains($0.key) }
+            var seenDinnerIDs = Set<String>()
+            history = Array((snapshot.history?.elements ?? []).filter {
+                !$0.id.isEmpty && !$0.recipeID.isEmpty && seenDinnerIDs.insert($0.id).inserted
+            }.prefix(Self.historyLimit))
             if session.stage == .ticketLocked || session.stage == .cooking || session.stage == .served {
                 guard let winner, session.recipeIDs.contains(winner.id), !winner.steps.isEmpty else {
                     session = .fresh()
@@ -638,5 +714,8 @@ final class OrderHomeStore {
         var votes: [Vote]
         var orders: [String: String]
         var customRecipes: [Recipe]?
+        /// Optional and lossy, so saves from before history existed still open
+        /// and a damaged entry can never cost someone their kitchen.
+        var history: LossyList<DinnerRecord>?
     }
 }

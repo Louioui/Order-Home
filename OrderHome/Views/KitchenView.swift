@@ -696,6 +696,8 @@ struct KitchenView: View {
                 }
                 .padding(.vertical, 8)
 
+                if !store.isSharedPresentation { DinnerRatingCard() }
+
                 VStack(alignment: .leading, spacing: 16) {
                     Text("A keeper?")
                         .font(.system(size: 27, weight: .regular, design: .serif))
