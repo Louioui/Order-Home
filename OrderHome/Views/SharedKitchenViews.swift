@@ -20,6 +20,7 @@ struct SharedKitchenView: View {
     @State private var appleNonce: String?
     @State private var appleError: String?
     @State private var showingInvite = false
+    @State private var confirmingDeleteAccount = false
 
     var body: some View {
         ScrollView {
@@ -50,6 +51,17 @@ struct SharedKitchenView: View {
         }
         .background(OHTheme.background)
         .sheet(isPresented: $showingInvite) { SharedKitchenInviteView() }
+        .confirmationDialog("Delete Account & All Data?", isPresented: $confirmingDeleteAccount, titleVisibility: .visible) {
+            Button("Delete Account & Data", role: .destructive) {
+                Task {
+                    await cloud.signOut()
+                    store.resetAllData()
+                    dismiss()
+                }
+            }
+        } message: {
+            Text("This will sign you out of Order Home, delete all local kitchen records, votes, and history, and clear the shared App Group container.")
+        }
         .onAppear {
             if let pending = cloud.pendingInviteToken { inviteToken = pending }
             if personName.isEmpty { personName = cloud.identity?.displayName ?? "" }
@@ -164,6 +176,16 @@ struct SharedKitchenView: View {
                     .font(.system(size: 13, weight: .medium)).foregroundStyle(OHTheme.ink)
                     .frame(maxWidth: .infinity).padding(.vertical, 12)
             }.disabled(cloud.isBusy)
+            Button(role: .destructive) {
+                confirmingDeleteAccount = true
+            } label: {
+                Label("Delete Account & All Data", systemImage: "trash")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.red)
+                    .frame(maxWidth: .infinity).padding(.vertical, 12)
+            }
+            .disabled(cloud.isBusy)
+            .accessibilityIdentifier("deleteAccountButton")
         }
     }
 

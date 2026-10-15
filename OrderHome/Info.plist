@@ -2,9 +2,61 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-  <key>CFBundleURLTypes</key>
-  <array><dict><key>CFBundleURLName</key><string>com.orderhome.app</string><key>CFBundleURLSchemes</key><array><string>orderhome</string></array></dict></array>
-  <key>NSSupportsLiveActivities</key><true/>
-  <key>ITSAppUsesNonExemptEncryption</key><false/>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.orderhome.app</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>orderhome</string>
+			</array>
+		</dict>
+	</array>
+	<key>NSSupportsLiveActivities</key>
+	<true/>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+	<key>NSRemindersUsageDescription</key>
+	<string>Order Home adds missing dinner ingredients to your Apple Reminders list so anyone at home can pick up groceries.</string>
+	<key>NSRemindersFullAccessUsageDescription</key>
+	<string>Order Home adds missing dinner ingredients to your Apple Reminders list so anyone at home can pick up groceries.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Order Home uses hands-free speech recognition so you can advance cooking steps without touching your screen.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Order Home uses your microphone for hands-free voice commands while cooking in the kitchen.</string>
+	<key>UIApplicationShortcutItems</key>
+	<array>
+		<dict>
+			<key>UIApplicationShortcutItemType</key>
+			<string>com.orderhome.tonight</string>
+			<key>UIApplicationShortcutItemTitle</key>
+			<string>What's for Dinner?</string>
+			<key>UIApplicationShortcutItemSubtitle</key>
+			<string>Check tonight's poll &amp; ticket</string>
+			<key>UIApplicationShortcutItemIconSymbolName</key>
+			<string>fork.knife</string>
+		</dict>
+		<dict>
+			<key>UIApplicationShortcutItemType</key>
+			<string>com.orderhome.kitchen</string>
+			<key>UIApplicationShortcutItemTitle</key>
+			<string>Cooking Studio</string>
+			<key>UIApplicationShortcutItemSubtitle</key>
+			<string>Hands-free steps &amp; timers</string>
+			<key>UIApplicationShortcutItemIconSymbolName</key>
+			<string>frying.pan</string>
+		</dict>
+		<dict>
+			<key>UIApplicationShortcutItemType</key>
+			<string>com.orderhome.menu</string>
+			<key>UIApplicationShortcutItemTitle</key>
+			<string>House Menu</string>
+			<key>UIApplicationShortcutItemSubtitle</key>
+			<string>Browse family recipes</string>
+			<key>UIApplicationShortcutItemIconSymbolName</key>
+			<string>book.closed</string>
+		</dict>
+	</array>
 </dict>
 </plist>

@@ -1,0 +1,4 @@
+app_identifier("com.orderhome.app")
+apple_id(ENV["APPLE_ID"] || "developer@orderhome.app")
+team_id(ENV["APPLE_TEAM_ID"] || "XXXXXXXXXX")
+itc_team_id(ENV["APPLE_ITC_TEAM_ID"] || "XXXXXXXXXX")

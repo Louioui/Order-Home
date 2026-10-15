@@ -10,6 +10,7 @@ struct HouseholdView: View {
     @State private var showingSharedKitchen = false
     @State private var showingInvitation = false
     @State private var showingFoodStats = false
+    @State private var confirmingResetAllData = false
     var body: some View {
         ScrollView(showsIndicators: false) {
             VStack(alignment: .leading, spacing: 25) {
@@ -74,6 +75,18 @@ struct HouseholdView: View {
                 if store.session.stage != .pitching && (!cloud.isSharedKitchen || cloud.canManageDinner) {
                     Button { confirmingNewDinner = true } label: { Label("Start a fresh dinner plan", systemImage: "arrow.counterclockwise").font(.system(size: 13, weight: .semibold)).foregroundStyle(OHTheme.accent).frame(maxWidth: .infinity).padding(16).overlay(RoundedRectangle(cornerRadius: 15).stroke(OHTheme.accent.opacity(0.25), lineWidth: 1)) }
                 }
+                Button(role: .destructive) {
+                    confirmingResetAllData = true
+                } label: {
+                    Label("Reset Kitchen & Delete All Data", systemImage: "trash")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(.red)
+                        .frame(maxWidth: .infinity)
+                        .padding(16)
+                        .background(.white, in: RoundedRectangle(cornerRadius: 15))
+                        .overlay(RoundedRectangle(cornerRadius: 15).stroke(Color.red.opacity(0.25), lineWidth: 1))
+                }
+                .accessibilityIdentifier("resetKitchenDataButton")
             }.padding(.horizontal, 24).padding(.top, 12).padding(.bottom, 28)
         }
         .sheet(isPresented: $addingMember) { MemberEditorView(member: nil) }
@@ -90,6 +103,14 @@ struct HouseholdView: View {
                 if cloud.isSharedKitchen { Task { await cloud.newDinner() } } else { store.newDinner() }
             }
         } message: { Text("This clears tonight’s votes, ticket, and timer. Your people and favorites stay saved.") }
+        .confirmationDialog("Reset Kitchen & Delete All Data?", isPresented: $confirmingResetAllData, titleVisibility: .visible) {
+            Button("Delete All Data & Reset", role: .destructive) {
+                KitchenNotifications.shared.cancelTimer()
+                store.resetAllData()
+            }
+        } message: {
+            Text("This permanently deletes your household, members, recipe history, votes, and live activities from this iPhone and your family shared container. This action cannot be undone.")
+        }
     }
     private var modePicker: some View {
         VStack(alignment: .leading, spacing: 13) {

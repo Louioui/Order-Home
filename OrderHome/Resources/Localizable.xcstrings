@@ -1,0 +1,196 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "Add to Apple Reminders" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Añadir a Recordatorios de Apple"
+          }
+        }
+      }
+    },
+    "Cooking Studio" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estudio de Cocina"
+          }
+        }
+      }
+    },
+    "Craving this" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "¡Se me antoja!"
+          }
+        }
+      }
+    },
+    "Dinner is served" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La cena está servida"
+          }
+        }
+      }
+    },
+    "Good food.\nBetter together." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Buena comida.\nMejor juntos."
+          }
+        }
+      }
+    },
+    "House menu" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Menú de la casa"
+          }
+        }
+      }
+    },
+    "I'm down" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Me apunto"
+          }
+        }
+      }
+    },
+    "Ingredients" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ingredientes"
+          }
+        }
+      }
+    },
+    "Kitchen" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cocina"
+          }
+        }
+      }
+    },
+    "Next step" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Siguiente paso"
+          }
+        }
+      }
+    },
+    "Pass tonight" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Paso por hoy"
+          }
+        }
+      }
+    },
+    "Previous step" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Paso anterior"
+          }
+        }
+      }
+    },
+    "Ring the dinner bell" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tocar la campana para cenar"
+          }
+        }
+      }
+    },
+    "Start cooking" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Empezar a cocinar"
+          }
+        }
+      }
+    },
+    "Step by step" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Paso a paso"
+          }
+        }
+      }
+    },
+    "Table for Two" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mesa para Dos"
+          }
+        }
+      }
+    },
+    "Tonight" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Esta noche"
+          }
+        }
+      }
+    },
+    "What's for Dinner?" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "¿Qué hay de cena?"
+          }
+        }
+      }
+    },
+    "Your table" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tu mesa"
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}

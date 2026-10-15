@@ -1,0 +1,1048 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Order Home · Fast, Private Family Dinner Decisions for iOS</title>
+    <meta name="description" content="Stop the group chat chaos and put dinner on the table. Native iOS family dinner voting with serverless iMessage extensions, Apple Reminders sync, Live Activities, and hands-free kitchen voice navigation.">
+    <meta name="keywords" content="dinner app, meal planner, family dinner voting, iOS recipe app, iMessage dinner poll, hands free cooking, Apple Reminders grocery sync">
+    <meta property="og:title" content="Order Home · The Table Voting Engine">
+    <meta property="og:description" content="Turns 5:30 PM indecision into a cooked meal. Native iOS app with zero tracking, serverless iMessage polls, and hands-free kitchen voice control.">
+    <meta property="og:type" content="website">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600;1,6..72,400&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --cream: #FBF8F3;
+            --cream-card: #FFFFFF;
+            --sand: #F3EDE2;
+            --sand-border: #E6DCCD;
+            --forest: #1E392A;
+            --forest-light: #2D5A43;
+            --forest-tint: #EBF2ED;
+            --accent: #D9532F;
+            --accent-tint: #FDF1ED;
+            --ink: #1F2421;
+            --muted: #676E69;
+            --radius-lg: 20px;
+            --radius-md: 12px;
+            --radius-sm: 8px;
+            --shadow: 0 10px 30px rgba(31, 36, 33, 0.06);
+            --shadow-hover: 0 18px 40px rgba(31, 36, 33, 0.12);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: var(--cream);
+            color: var(--ink);
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        h1, h2, h3, .serif {
+            font-family: 'Newsreader', Georgia, serif;
+            font-weight: 600;
+            line-height: 1.2;
+        }
+
+        a {
+            color: inherit;
+            text-decoration: none;
+        }
+
+        /* Navigation */
+        .navbar {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: rgba(251, 248, 243, 0.88);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            border-bottom: 1px solid var(--sand-border);
+            padding: 16px 24px;
+        }
+
+        .nav-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 700;
+            font-size: 1.2rem;
+            color: var(--forest);
+        }
+
+        .brand-icon {
+            width: 32px;
+            height: 32px;
+            background: var(--forest);
+            color: #fff;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 28px;
+            font-size: 0.95rem;
+            font-weight: 500;
+            color: var(--muted);
+        }
+
+        .nav-links a:hover {
+            color: var(--forest);
+        }
+
+        .nav-cta {
+            background: var(--forest);
+            color: #fff;
+            padding: 10px 18px;
+            border-radius: 99px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 12px rgba(30, 57, 42, 0.2);
+        }
+
+        .nav-cta:hover {
+            background: var(--forest-light);
+            transform: translateY(-1px);
+        }
+
+        /* Hero */
+        .hero {
+            padding: 80px 24px 60px;
+            max-width: 1100px;
+            margin: 0 auto;
+            text-align: center;
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: var(--forest-tint);
+            color: var(--forest);
+            padding: 6px 14px;
+            border-radius: 99px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-bottom: 24px;
+            border: 1px solid rgba(30, 57, 42, 0.15);
+        }
+
+        .hero h1 {
+            font-size: clamp(2.6rem, 5.5vw, 4.2rem);
+            color: var(--forest);
+            letter-spacing: -0.02em;
+            margin-bottom: 20px;
+            max-width: 900px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .hero p.lead {
+            font-size: clamp(1.1rem, 2vw, 1.35rem);
+            color: var(--muted);
+            max-width: 760px;
+            margin: 0 auto 36px;
+            font-weight: 400;
+        }
+
+        .hero-actions {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-bottom: 48px;
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: #fff;
+            padding: 14px 28px;
+            border-radius: 99px;
+            font-size: 1.05rem;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 8px 20px rgba(217, 83, 47, 0.28);
+            transition: all 0.2s ease;
+        }
+
+        .btn-primary:hover {
+            background: #C44320;
+            transform: translateY(-2px);
+            box-shadow: 0 12px 24px rgba(217, 83, 47, 0.35);
+        }
+
+        .btn-secondary {
+            background: var(--cream-card);
+            color: var(--forest);
+            border: 1px solid var(--sand-border);
+            padding: 14px 24px;
+            border-radius: 99px;
+            font-size: 1.05rem;
+            font-weight: 600;
+            transition: all 0.2s ease;
+        }
+
+        .btn-secondary:hover {
+            background: var(--sand);
+            border-color: #D3C5B1;
+        }
+
+        /* Pillars strip */
+        .pill-strip {
+            display: flex;
+            justify-content: center;
+            gap: 32px;
+            flex-wrap: wrap;
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--muted);
+            padding: 18px;
+            background: var(--sand);
+            border-radius: 99px;
+            max-width: 860px;
+            margin: 0 auto 60px;
+            border: 1px solid var(--sand-border);
+        }
+
+        .pill-strip span {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        /* App Store Value Props Showcase */
+        .showcase {
+            max-width: 1200px;
+            margin: 40px auto 100px;
+            padding: 0 24px;
+        }
+
+        .section-header {
+            text-align: center;
+            max-width: 720px;
+            margin: 0 auto 60px;
+        }
+
+        .section-header .tag {
+            color: var(--accent);
+            text-transform: uppercase;
+            font-size: 0.8rem;
+            font-weight: 700;
+            letter-spacing: 0.12em;
+            margin-bottom: 8px;
+            display: block;
+        }
+
+        .section-header h2 {
+            font-size: clamp(2rem, 3.5vw, 2.8rem);
+            color: var(--forest);
+            margin-bottom: 14px;
+        }
+
+        .section-header p {
+            color: var(--muted);
+            font-size: 1.1rem;
+        }
+
+        .feature-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 80px;
+        }
+
+        .feature-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 60px;
+            align-items: center;
+        }
+
+        .feature-row.reverse {
+            grid-template-columns: 1fr 1fr;
+        }
+
+        .feature-row.reverse .feature-text {
+            order: 2;
+        }
+
+        .feature-row.reverse .feature-media {
+            order: 1;
+        }
+
+        .feature-text .step-number {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: var(--forest);
+            background: var(--forest-tint);
+            padding: 4px 10px;
+            border-radius: 6px;
+            display: inline-block;
+            margin-bottom: 16px;
+        }
+
+        .feature-text h3 {
+            font-size: clamp(1.8rem, 2.5vw, 2.3rem);
+            color: var(--forest);
+            margin-bottom: 16px;
+        }
+
+        .feature-text p {
+            color: var(--muted);
+            font-size: 1.05rem;
+            margin-bottom: 24px;
+            line-height: 1.7;
+        }
+
+        .bullet-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .bullet-list li {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            font-size: 0.98rem;
+            color: var(--ink);
+            font-weight: 500;
+        }
+
+        .bullet-list li::before {
+            content: "✓";
+            color: var(--forest);
+            font-weight: 700;
+            background: var(--forest-tint);
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8rem;
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+
+        .feature-media {
+            position: relative;
+            background: var(--sand);
+            border-radius: var(--radius-lg);
+            padding: 24px;
+            border: 1px solid var(--sand-border);
+            box-shadow: var(--shadow);
+            text-align: center;
+            overflow: hidden;
+        }
+
+        .feature-media img {
+            width: 100%;
+            max-width: 380px;
+            height: auto;
+            border-radius: 28px;
+            box-shadow: 0 16px 36px rgba(0, 0, 0, 0.16);
+            display: inline-block;
+            border: 4px solid #fff;
+            transition: transform 0.3s ease;
+        }
+
+        .feature-media img:hover {
+            transform: scale(1.02);
+        }
+
+        /* Kitchen Edge Cases Cards */
+        .edge-cases-section {
+            background: var(--sand);
+            padding: 90px 24px;
+            border-top: 1px solid var(--sand-border);
+            border-bottom: 1px solid var(--sand-border);
+        }
+
+        .edge-cases-grid {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 30px;
+        }
+
+        .edge-card {
+            background: var(--cream-card);
+            border-radius: var(--radius-md);
+            padding: 36px 30px;
+            border: 1px solid var(--sand-border);
+            box-shadow: var(--shadow);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .edge-card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-hover);
+        }
+
+        .card-icon {
+            width: 52px;
+            height: 52px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.6rem;
+            margin-bottom: 20px;
+            background: var(--forest-tint);
+        }
+
+        .edge-card h3 {
+            font-size: 1.45rem;
+            color: var(--forest);
+            margin-bottom: 12px;
+        }
+
+        .edge-card p {
+            color: var(--muted);
+            font-size: 0.98rem;
+            line-height: 1.65;
+        }
+
+        /* Siri & System Native */
+        .ecosystem-section {
+            max-width: 1200px;
+            margin: 100px auto;
+            padding: 0 24px;
+        }
+
+        .intents-banner {
+            background: linear-gradient(135deg, var(--forest) 0%, #0F2016 100%);
+            border-radius: var(--radius-lg);
+            padding: 50px 40px;
+            color: #fff;
+            display: grid;
+            grid-template-columns: 1.2fr 1fr;
+            gap: 40px;
+            align-items: center;
+        }
+
+        .intents-banner h2 {
+            font-size: 2.3rem;
+            color: #fff;
+            margin-bottom: 16px;
+        }
+
+        .intents-banner p {
+            color: rgba(255, 255, 255, 0.82);
+            font-size: 1.05rem;
+            margin-bottom: 24px;
+        }
+
+        .voice-prompts {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .voice-chip {
+            background: rgba(255, 255, 255, 0.12);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 12px 18px;
+            border-radius: 12px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* FAQ */
+        .faq-section {
+            max-width: 800px;
+            margin: 90px auto;
+            padding: 0 24px;
+        }
+
+        .faq-item {
+            background: var(--cream-card);
+            border: 1px solid var(--sand-border);
+            border-radius: var(--radius-md);
+            margin-bottom: 16px;
+            overflow: hidden;
+        }
+
+        .faq-item summary {
+            padding: 20px 24px;
+            font-weight: 600;
+            font-size: 1.1rem;
+            color: var(--forest);
+            cursor: pointer;
+            list-style: none;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .faq-item summary::-webkit-details-marker {
+            display: none;
+        }
+
+        .faq-item summary::after {
+            content: "+";
+            font-size: 1.4rem;
+            color: var(--accent);
+            transition: transform 0.2s ease;
+        }
+
+        .faq-item[open] summary::after {
+            content: "−";
+        }
+
+        .faq-answer {
+            padding: 0 24px 22px;
+            color: var(--muted);
+            font-size: 1rem;
+            line-height: 1.65;
+            border-top: 1px solid var(--sand);
+        }
+
+        /* Support & Contact Form */
+        .support-section {
+            background: var(--sand);
+            padding: 90px 24px;
+            border-top: 1px solid var(--sand-border);
+        }
+
+        .support-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: var(--cream-card);
+            border-radius: var(--radius-lg);
+            padding: 44px;
+            border: 1px solid var(--sand-border);
+            box-shadow: var(--shadow);
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--ink);
+            margin-bottom: 6px;
+        }
+
+        .form-group input, .form-group textarea, .form-group select {
+            width: 100%;
+            padding: 12px 14px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--sand-border);
+            background: var(--cream);
+            font-family: inherit;
+            font-size: 0.95rem;
+            color: var(--ink);
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .form-group input:focus, .form-group textarea:focus, .form-group select:focus {
+            border-color: var(--forest);
+        }
+
+        .form-success-banner {
+            display: none;
+            background: var(--forest-tint);
+            border: 1px solid var(--forest);
+            color: var(--forest);
+            padding: 14px 18px;
+            border-radius: var(--radius-sm);
+            margin-bottom: 20px;
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+
+        /* Privacy Policy */
+        .privacy-section {
+            max-width: 900px;
+            margin: 100px auto;
+            padding: 0 24px;
+        }
+
+        .privacy-card {
+            background: var(--cream-card);
+            border: 1px solid var(--sand-border);
+            border-radius: var(--radius-lg);
+            padding: 48px;
+            box-shadow: var(--shadow);
+        }
+
+        .privacy-card h2 {
+            font-size: 2.2rem;
+            color: var(--forest);
+            margin-bottom: 12px;
+        }
+
+        .privacy-card .updated-date {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--muted);
+            margin-bottom: 30px;
+            display: block;
+        }
+
+        .privacy-card h3 {
+            font-size: 1.35rem;
+            color: var(--forest);
+            margin: 28px 0 10px;
+        }
+
+        .privacy-card p, .privacy-card ul {
+            color: var(--muted);
+            font-size: 1rem;
+            line-height: 1.7;
+            margin-bottom: 16px;
+        }
+
+        .privacy-card ul {
+            padding-left: 20px;
+        }
+
+        .privacy-callout {
+            background: var(--forest-tint);
+            border-left: 4px solid var(--forest);
+            padding: 16px 20px;
+            border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+            margin: 20px 0;
+            font-size: 0.95rem;
+            color: var(--forest);
+            font-weight: 500;
+        }
+
+        /* Footer */
+        footer {
+            background: var(--forest);
+            color: rgba(255, 255, 255, 0.7);
+            padding: 60px 24px;
+            text-align: center;
+            font-size: 0.9rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        footer .footer-brand {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 12px;
+        }
+
+        footer .footer-links {
+            display: flex;
+            justify-content: center;
+            gap: 24px;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+
+        footer .footer-links a {
+            color: rgba(255, 255, 255, 0.85);
+        }
+
+        footer .footer-links a:hover {
+            color: #fff;
+        }
+
+        @media (max-width: 860px) {
+            .feature-row, .feature-row.reverse {
+                grid-template-columns: 1fr;
+                gap: 36px;
+            }
+            .feature-row.reverse .feature-text {
+                order: 1;
+            }
+            .feature-row.reverse .feature-media {
+                order: 2;
+            }
+            .intents-banner {
+                grid-template-columns: 1fr;
+            }
+            .nav-links {
+                display: none;
+            }
+            .support-container {
+                padding: 24px;
+            }
+            .privacy-card {
+                padding: 24px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <a href="#" class="brand">
+                <div class="brand-icon">🔔</div>
+                <span>Order Home</span>
+            </a>
+            <div class="nav-links">
+                <a href="#features">Features</a>
+                <a href="#kitchen">Hands-Free Kitchen</a>
+                <a href="#ecosystem">Apple Ecosystem</a>
+                <a href="#faq">FAQ</a>
+                <a href="#privacy">Privacy Policy</a>
+                <a href="#support">Support</a>
+            </div>
+            <a href="#download" class="nav-cta">Get on TestFlight</a>
+        </div>
+    </nav>
+
+    <!-- Hero -->
+    <header class="hero">
+        <div class="badge">✨ iOS 17+ Native · Siri & Apple Intelligence · Offline-First</div>
+        <h1>Stop the Group Chat Chaos.<br>Put Dinner on the Table.</h1>
+        <p class="lead">The fast, private family dinner ballot that turns 5:30 PM indecision into a cooked meal. Native iOS with serverless iMessage voting, Apple Reminders sync, Live Activities, and hands-free voice cooking.</p>
+        
+        <div class="hero-actions" id="download">
+            <a href="https://testflight.apple.com" target="_blank" class="btn-primary">
+                <span> Join TestFlight Beta</span>
+            </a>
+            <a href="#features" class="btn-secondary">Explore Key Features</a>
+        </div>
+
+        <div class="pill-strip">
+            <span>🛡️ Zero Trackers or Ads</span>
+            <span>📱 Serverless iMessage Extension</span>
+            <span>🍳 100% Offline-First</span>
+            <span>🗣️ Hands-Free Speech Navigation</span>
+            <span>🛒 Apple Reminders Aisle Sync</span>
+        </div>
+    </header>
+
+    <!-- App Store 4 Screenshot Value Propositions -->
+    <section class="showcase" id="features">
+        <div class="section-header">
+            <span class="tag">Commercial Ecosystem Experience</span>
+            <h2>Designed for Real Kitchens & Real Families</h2>
+            <p>From nomination to the dinner bell, every screen is engineered to remove friction and bring everyone to the table.</p>
+        </div>
+
+        <div class="feature-grid">
+            <!-- 1. Stop the Group Chat Chaos -->
+            <div class="feature-row">
+                <div class="feature-text">
+                    <span class="step-number">VALUE PROP 01</span>
+                    <h3>Stop the Group Chat Chaos</h3>
+                    <p>Asking "What do you want to eat?" into a silent family group chat invites dread. Order Home replaces unstructured texting with a structured, 5-minute dinner ballot. Nominate up to five cravings and cast votes in seconds.</p>
+                    <ul class="bullet-list">
+                        <li>Three clean, honest reactions: Pass, Down, or Love.</li>
+                        <li>Serverless iMessage extension puts ballots right inside your existing family chat.</li>
+                        <li>Automated tie-breakers honor nomination order and least resistance.</li>
+                        <li>No logins or passwords required—ever.</li>
+                    </ul>
+                </div>
+                <div class="feature-media">
+                    <img src="screenshots/tonight.jpg" alt="Order Home Tonight Voting Screen" loading="lazy">
+                </div>
+            </div>
+
+            <!-- 2. The Table for Two Compromise Blocker -->
+            <div class="feature-row reverse">
+                <div class="feature-text">
+                    <span class="step-number">VALUE PROP 02</span>
+                    <h3>The "Table for Two" Compromise Blocker</h3>
+                    <p>Couples often end up with mediocre takeout because one person compromised on a dish they secretly disliked. In Couple Mode, Order Home introduces strict consensus matching: a recipe only locks when both partners explicitly vote "Love".</p>
+                    <ul class="bullet-list">
+                        <li>Strict mutual-love validation stops resentment dinners cold.</li>
+                        <li>Zero compromise rule: If neither loves a choice, the ballot resets instantly.</li>
+                        <li>Dynamic attendance toggle: Skip or eat out without skewing portions.</li>
+                        <li>Personalized House Menu favorites built over time.</li>
+                    </ul>
+                </div>
+                <div class="feature-media">
+                    <img src="screenshots/dinner-match.jpg" alt="Order Home Table for Two Consensus Match" loading="lazy">
+                </div>
+            </div>
+
+            <!-- 3. The Kitchen Ticket & Portion Scaler -->
+            <div class="feature-row">
+                <div class="feature-text">
+                    <span class="step-number">VALUE PROP 03</span>
+                    <h3>The Kitchen Ticket & Portion Scaler</h3>
+                    <p>Once a winner is crowned, Order Home generates a locked Kitchen Ticket. It calculates exact fractional ingredient amounts based on who is actually eating tonight, and categorizes missing items for effortless shopping.</p>
+                    <ul class="bullet-list">
+                        <li>Precise fractional math (¾ cup, 1½ tbsp, 227 g) scales to exact diner counts.</li>
+                        <li>Smart Unit Toggle: Switch effortlessly between Recipe, Metric, and Imperial units.</li>
+                        <li>Apple Reminders API integration: 1-tap export to a dedicated shopping list.</li>
+                        <li>Automatic supermarket aisle organization: Produce, Meat, Dairy, Bakery, Pantry.</li>
+                    </ul>
+                </div>
+                <div class="feature-media">
+                    <img src="screenshots/kitchen-ticket.jpg" alt="Order Home Kitchen Ticket and Scaled Ingredients" loading="lazy">
+                </div>
+            </div>
+
+            <!-- 4. Distraction-Free Cooking Studio -->
+            <div class="feature-row reverse">
+                <div class="feature-text">
+                    <span class="step-number">VALUE PROP 04</span>
+                    <h3>Distraction-Free Cooking Studio</h3>
+                    <p>Hands covered in flour, sourdough dough, or chicken juice? Keep your iPhone screen pristine. Step-by-step Cooking Studio features on-device voice recognition and knuckle-swipe accessibility so you can advance steps without touching glass.</p>
+                    <ul class="bullet-list">
+                        <li>Hands-Free Voice Navigation: Say "Next", "Back", or "Ring Bell".</li>
+                        <li>Knuckle & Forearm Swipe Gesture: Swipe anywhere on screen with a forearm or wrist.</li>
+                        <li>Screen Awake Guard: Prevents phone locking mid-recipe.</li>
+                        <li>ActivityKit Live Activities: Real-time cook tracker on the Lock Screen & Dynamic Island.</li>
+                    </ul>
+                </div>
+                <div class="feature-media">
+                    <img src="screenshots/cooking-studio.jpg" alt="Order Home Distraction Free Cooking Studio" loading="lazy">
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Physical Kitchen Edge Cases Section -->
+    <section class="edge-cases-section" id="kitchen">
+        <div class="section-header">
+            <span class="tag">Kitchen Edge Cases Solved</span>
+            <h2>Built for What Actually Happens at 6:00 PM</h2>
+            <p>Real home cooking is messy, chaotic, and rushed. We obsessed over physical kitchen ergonomics so the software never gets in your way.</p>
+        </div>
+
+        <div class="edge-cases-grid">
+            <div class="edge-card">
+                <div class="card-icon">🎙️</div>
+                <h3>Hands-Free Voice Navigation</h3>
+                <p>When prepping meatballs or kneeding dough, touching the phone is out of the question. With on-device speech recognition, just say "Next Step" or "Ring Bell" to advance your recipe without leaving flour on your screen.</p>
+            </div>
+
+            <div class="edge-card">
+                <div class="card-icon">💪</div>
+                <h3>Knuckle & Forearm Swipe</h3>
+                <p>For loud kitchens with boiling pots and blenders running, voice isn't always practical. Order Home includes a high-tolerance knuckle gesture: tap or swipe anywhere on the display with your forearm or wrist to advance.</p>
+            </div>
+
+            <div class="edge-card">
+                <div class="card-icon">⚖️</div>
+                <h3>Smart Unit Conversion</h3>
+                <p>Baking or cooking European recipes in America? Toggle between Recipe, Metric (grams / ml), and Imperial (cups / oz) with a single tap directly in the ingredient checklist. No mental unit math required.</p>
+            </div>
+
+            <div class="edge-card">
+                <div class="card-icon">🛒</div>
+                <h3>Apple Reminders Aisle Sync</h3>
+                <p>Tap "Add to Apple Reminders" to automatically generate an "Order Home: Tonight's Dinner" checklist organized by supermarket aisle—Produce, Meat, Dairy, Bakery, and Pantry—ready for whoever is picking up groceries on the drive home.</p>
+            </div>
+
+            <div class="edge-card">
+                <div class="card-icon">🧠</div>
+                <h3>Smart Recipe Suggestions</h3>
+                <p>The on-device recommendation engine analyzes your household's rolling 60-dinner history. It identifies day-of-week traditions ("You usually cook Rigatoni on Thursdays") while enforcing a 48-hour cooldown on recently cooked dishes.</p>
+            </div>
+
+            <div class="edge-card">
+                <div class="card-icon">🔔</div>
+                <h3>Dinner Bell Live Activities</h3>
+                <p>When cooking finishes, the digital dinner bell rings and updates the Lock Screen and Dynamic Island of every phone in the house via ActivityKit. Dinner is served—no shouting up the stairs needed.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Siri & Apple Ecosystem -->
+    <section class="ecosystem-section" id="ecosystem">
+        <div class="intents-banner">
+            <div>
+                <h2>Apple Intelligence & Siri Native</h2>
+                <p>Order Home declares native Swift App Intents for deep operating system tool-use. Voice queries and Spotlight searches map directly to household dining verbs without opening the app.</p>
+                <div class="voice-prompts">
+                    <div class="voice-chip">🎙️ "Hey Siri, pitch Rigatoni to Order Home"</div>
+                    <div class="voice-chip">🎙️ "Hey Siri, what's for dinner in Order Home?"</div>
+                    <div class="voice-chip">🎙️ "Hey Siri, set my dinner attendance to eating at home"</div>
+                </div>
+            </div>
+            <div style="text-align: center;">
+                <img src="screenshots/household.jpg" alt="Order Home Household and Settings" style="max-width: 280px; border-radius: 24px; box-shadow: 0 20px 40px rgba(0,0,0,0.4); border: 3px solid rgba(255,255,255,0.2);">
+            </div>
+        </div>
+    </section>
+
+    <!-- Support & Feedback -->
+    <section class="support-section" id="support">
+        <div class="section-header">
+            <span class="tag">We're Here to Help</span>
+            <h2>Customer Support & Feedback</h2>
+            <p>Have questions, a kitchen feature idea, or need help setting up your household? Contact the Order Home team.</p>
+        </div>
+
+        <div class="support-container">
+            <div id="formSuccess" class="form-success-banner">
+                ✓ Thank you! Your support message has been sent. We'll get back to your table within 24 hours.
+            </div>
+            <form id="supportForm" onsubmit="handleSupportSubmit(event)">
+                <div class="form-group">
+                    <label for="name">Your Name</label>
+                    <input type="text" id="name" placeholder="Head Chef Alex" required>
+                </div>
+                <div class="form-group">
+                    <label for="email">Email Address</label>
+                    <input type="email" id="email" placeholder="alex@example.com" required>
+                </div>
+                <div class="form-group">
+                    <label for="category">Inquiry Topic</label>
+                    <select id="category">
+                        <option value="setup">Household Setup & iMessage Help</option>
+                        <option value="voice">Hands-Free Kitchen Voice Control</option>
+                        <option value="reminders">Apple Reminders Grocery Sync</option>
+                        <option value="feedback">Recipe & Feature Suggestion</option>
+                        <option value="privacy">Privacy & Data Deletion</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="message">How can we help your kitchen?</label>
+                    <textarea id="message" rows="5" placeholder="Tell us what you're experiencing or what recipes you'd love to see..." required></textarea>
+                </div>
+                <button type="submit" class="btn-primary" style="width: 100%; justify-content: center; border: none; cursor: pointer;">
+                    Send Support Request
+                </button>
+            </form>
+            <div style="margin-top: 24px; text-align: center; font-size: 0.9rem; color: var(--muted);">
+                Or email us directly anytime: <a href="mailto:support@orderhome.app" style="color: var(--forest); font-weight: 600; text-decoration: underline;">support@orderhome.app</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- FAQ Accordion -->
+    <section class="faq-section" id="faq">
+        <div class="section-header">
+            <span class="tag">Questions & Answers</span>
+            <h2>Frequently Asked Questions</h2>
+        </div>
+
+        <details class="faq-item">
+            <summary>Does Order Home require an account, email login, or subscription?</summary>
+            <div class="faq-answer">
+                No. Order Home is built on a 100% offline-first architecture. It functions completely out of the box with zero logins, zero accounts, zero subscriptions, and zero advertising trackers. Your dinner data belongs to you.
+            </div>
+        </details>
+
+        <details class="faq-item">
+            <summary>How does hands-free voice control work when my hands are messy?</summary>
+            <div class="faq-answer">
+                Inside the Cooking Studio, tap the microphone badge to enable Hands-Free mode. Apple's on-device speech recognition listens for simple kitchen keywords like "Next", "Back", or "Ring Bell". No audio is ever recorded, transmitted, or saved to any cloud server.
+            </div>
+        </details>
+
+        <details class="faq-item">
+            <summary>How does the couple compromise blocker prevent arguments?</summary>
+            <div class="faq-answer">
+                In Couple Mode, Order Home requires explicit mutual love ("Love" reaction from both partners) for a winning dish to lock. If one person votes "Down" or "Pass", the meal is rejected and cannot win. This eliminates passive-aggressive dinners and guarantees both people actually want what's on the table.
+            </div>
+        </details>
+
+        <details class="faq-item">
+            <summary>Can I import custom YouTube or creator recipes?</summary>
+            <div class="faq-answer">
+                Yes! Tap the "+" button in the Menu Builder or House Menu and paste any valid YouTube or recipe URL. Order Home sanitizes the link, extracts creator attribution, and embeds distraction-free playback directly inside your step-by-step kitchen ticket.
+            </div>
+        </details>
+
+        <details class="faq-item">
+            <summary>How do I permanently delete all my household data?</summary>
+            <div class="faq-answer">
+                In compliance with Apple App Store Review Guideline 5.1.1(v), Order Home includes a dedicated, destructive "Reset Kitchen & Delete All Data" option located directly inside the Household settings tab. Tapping this permanently purges local sandbox databases, shared App Group containers, and active Live Activities in one instant action.
+            </div>
+        </details>
+    </section>
+
+    <!-- Apple Guideline 5.1.1 Compliant Privacy Policy -->
+    <section class="privacy-section" id="privacy">
+        <div class="privacy-card">
+            <span class="tag" style="color: var(--forest); font-weight: 700; text-transform: uppercase; font-size: 0.8rem; letter-spacing: 0.1em;">Legal & Privacy Disclosure</span>
+            <h2>Order Home Privacy Policy</h2>
+            <span class="updated-date">Last Updated: October 2026 · Complies with Apple App Store Review Guideline 5.1.1</span>
+
+            <div class="privacy-callout">
+                <strong>Our Privacy Philosophy:</strong> What you eat at home with your family is nobody's business. Order Home was architected from line one to collect zero personal data, zero analytics, zero location records, and zero advertising IDs.
+            </div>
+
+            <h3>1. Complete Offline-First Architecture</h3>
+            <p>Order Home operates as a native, local-first iOS application. All household configurations, member display names, dinner ratings, voting tallies, recipes, and rolling 60-dinner history records are stored exclusively in your device's local application sandbox and private iOS App Group container (<code>group.com.partnershipwithmedia.orderhome</code>).</p>
+
+            <h3>2. Zero Third-Party Tracking & Zero Advertising</h3>
+            <p>We do not integrate third-party analytics SDKs, advertising frameworks, crash trackers, or behavior profiling networks. We do not sell, rent, monetize, or disclose any household dining records to data brokers or third parties under any circumstances.</p>
+
+            <h3>3. On-Device Speech Recognition & Apple Intelligence</h3>
+            <p>When you enable hands-free kitchen voice navigation, audio analysis is performed strictly on your Apple device using Apple's <code>Speech</code> and <code>AVAudioEngine</code> frameworks. Order Home never records, transmits, or uploads voice samples or ambient kitchen conversations to any external server. Siri and Apple Intelligence App Intents run strictly through Apple's native on-device intent dispatcher.</p>
+
+            <h3>4. Apple Reminders & System Permissions</h3>
+            <p>Order Home requests access to your Reminders app solely when you tap "Add to Apple Reminders" on a locked Kitchen Ticket. Access is used strictly to create and populate a dedicated list named <em>"Order Home: Tonight's Dinner"</em> with missing groceries. Order Home never inspects, modifies, or accesses any of your other private Reminders calendars or personal tasks.</p>
+
+            <h3>5. Optional Cloud Kitchen Sync</h3>
+            <p>If your household chooses to configure Cloud Kitchen sync, dinner states synchronize directly to your private, self-managed database via encrypted HTTPS connections. Authentication tokens and database secrets remain encrypted in the iOS Keychain. You may disconnect or revert to local-only mode at any time with zero data lock-in.</p>
+
+            <h3>6. In-App Account & Complete Data Erasure (Guideline 5.1.1(v))</h3>
+            <p>You have full, autonomous control over your data. In full compliance with Apple App Store Review Guideline 5.1.1(v), Order Home provides an unambiguous in-app data deletion mechanism:</p>
+            <ul>
+                <li><strong>Local Kitchen Wipe:</strong> Navigate to the <em>Household</em> tab and tap <em>"Reset Kitchen & Delete All Data"</em>. Confirming this action immediately unlinks and permanently erases all recipes, voting histories, dinner ratings, household profiles, App Group container caches, and active Live Activities.</li>
+                <li><strong>Cloud Kitchen Disconnect:</strong> If connected to a shared kitchen, tapping <em>"Delete Account & All Data"</em> signs your device out, revokes authorization keys, and purges all shared cache files from your device.</li>
+            </ul>
+
+            <h3>7. Contact for Privacy Inquiries</h3>
+            <p>If you have any questions regarding this Privacy Policy or your dining data, please contact our privacy officer at <a href="mailto:privacy@orderhome.app" style="color: var(--forest); font-weight: 600;">privacy@orderhome.app</a> or via mail at Order Home Software, Support Division.</p>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+        <div class="footer-brand">🔔 Order Home</div>
+        <p>The Fast, Private Family Dinner Ballot for iOS.</p>
+        <div class="footer-links">
+            <a href="#features">Features</a>
+            <a href="#kitchen">Kitchen Studio</a>
+            <a href="#ecosystem">Apple Ecosystem</a>
+            <a href="#faq">FAQ</a>
+            <a href="#support">Support</a>
+            <a href="#privacy">Privacy Policy</a>
+        </div>
+        <p style="font-size: 0.8rem; opacity: 0.7;">© 2026 Order Home. Designed with care for home cooks and families everywhere. Apple, iOS, iMessage, Siri, and TestFlight are trademarks of Apple Inc.</p>
+    </footer>
+
+    <script>
+        function handleSupportSubmit(e) {
+            e.preventDefault();
+            const form = document.getElementById('supportForm');
+            const success = document.getElementById('formSuccess');
+            form.reset();
+            success.style.display = 'block';
+            success.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+    </script>
+</body>
+</html>

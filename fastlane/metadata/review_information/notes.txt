@@ -1,0 +1,33 @@
+NOTES FOR APP STORE REVIEW:
+
+Thank you for reviewing Order Home!
+
+1. NO ACCOUNT / SIGN-IN REQUIRED:
+Order Home is designed completely serverless and private. The app does not require a login, password, or third-party account. Upon launching, you will be in the kitchen table interface ready to test.
+
+2. SAMPLE KITCHEN / DEMO FLOW:
+• Tonight Board:
+  - You can immediately tap "Vote on Tonight's Menu" to cast reactions for family members (Pass, Down, Craving).
+  - Tapping "Lock Winner" locks in tonight's dinner and generates the Kitchen Ticket.
+• Kitchen Ticket & Ingredient Scaler:
+  - Toggle between 2, 4, 6, or custom diners to see portions and fractional numbers scale in real time.
+  - Use the "Recipe / Metric / Imperial" picker to convert between cups, ml, grams, and ounces.
+  - Tap "Add to Apple Reminders" to test the Reminders API integration (will prompt for Reminders permission and create the "Order Home: Tonight's Dinner" grocery list).
+• Cooking Studio & Hands-Free Voice Control:
+  - Tap "Start Cooking" to enter the step-by-step studio.
+  - Say "Next", "Back", or "Ring bell" to test hands-free speech navigation (requires microphone & speech recognition permissions).
+  - Alternatively, swipe horizontally anywhere on the screen with a knuckle or forearm.
+• Table for Two Mode:
+  - Open "Your Table" (bottom right tab), toggle Household Mode to "Table for Two (Couples)".
+  - Return to Tonight to see the strict mutual-match requirement in action.
+
+3. iMESSAGE EXTENSION:
+• Order Home includes an iMessage extension ("OrderHomeMessages") which allows household members to vote via interactive chat bubbles. When testing in the Messages simulator or on device, insert the Order Home iMessage app to cast votes.
+
+4. SIRI & APP INTENTS:
+• Open the Shortcuts app or invoke Siri with "Check dinner status with Order Home" or "What's for dinner in Order Home?".
+
+5. DATA DELETION / PRIVACY:
+• In "Your Table", scroll down to "Delete All Data & Reset Kitchen" to verify immediate, complete on-device data erasure in compliance with App Store Review Guideline 5.1.1(v).
+
+If you have any questions or need additional assistance, please reach out to developer@orderhome.app.

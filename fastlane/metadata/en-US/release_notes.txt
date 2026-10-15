@@ -1,0 +1,8 @@
+Welcome to Order Home 1.0!
+• Tonight Voting: Pitch up to 5 family favorites and let everyone react with Pass, Down, or Craving.
+• Table for Two: Strict mutual love matching for compromise-free couples dinners.
+• Dynamic Portions & Kitchen Math: Real-time ingredient scaling with fractional units and automatic Metric/Imperial conversion.
+• Hands-Free Cooking Studio: Voice-driven step navigation and large knuckle swipe gesture so you never dirty your screen with flour or batter.
+• Apple Reminders Sync: Export missing ingredients instantly into a categorized grocery list sorted by supermarket aisle.
+• Apple Intelligence & Siri: Pitch cravings and check tonight's winner hands-free with Siri App Shortcuts.
+• Serverless & Private: Zero accounts, zero ads, zero tracking. All your data stays on your family devices.

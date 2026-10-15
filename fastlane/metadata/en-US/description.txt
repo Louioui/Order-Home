@@ -1,0 +1,34 @@
+Stop the 6:00 PM group chat chaos. Order Home ends the endless "What do you want for dinner?" debate and turns household cooking into a delightful family ritual.
+
+Designed exclusively for couples, families, and roommates, Order Home replaces messy text chains and decision paralysis with a private, serverless dinner polling and cooking studio built right into iOS.
+
+HOW IT WORKS:
+
+1. THE TONIGHT BOARD: NOMINATE & VOTE
+Pitch up to 5 family favorites or let the smart suggestion engine propose meals based on your household's cooking history. Each family member casts their reaction in seconds:
+• ✋ Pass tonight
+• 👌 I'm down
+• 🔥 Craving this!
+
+2. TABLE FOR TWO (COMPROMISE BLOCKER)
+Couples shouldn't settle for lukewarm compromises. In Table for Two mode, dinner only locks in when both partners share mutual love for the dish. If you don't match, the app prompts you to spin up fresh cravings or pick your favorite takeout spot—no resentment, no endless back-and-forth.
+
+3. SMART KITCHEN TICKET & FRACTIONAL PORTIONS
+Once dinner is locked, Order Home automatically checks tonight's attendance and scales ingredients instantly. Enjoy crisp, readable kitchen fractions (¾ cup jasmine rice, 1½ tbsp sesame oil) and switch effortlessly between Recipe, Metric (grams, ml), and Imperial (oz, cups) measurements.
+
+4. ONE-TAP APPLE REMINDERS GROCERY HANDOFF
+Missing ingredients? Tap "Add to Apple Reminders" to instantly populate a shared "Order Home: Tonight's Dinner" grocery list inside your native iOS Reminders app, automatically categorized by supermarket aisle (Produce, Meat & Seafood, Dairy, Bakery, Pantry).
+
+5. HANDS-FREE COOKING STUDIO
+When your hands are covered in flour, oil, or raw ingredients, touching your iPhone screen is the last thing you want to do. Cooking Studio features:
+• Voice navigation: Simply say "Next", "Back", or "Ring the dinner bell".
+• Knuckle & forearm swipe: Move between steps with an oversized touch gesture.
+• Smart timers & keep-awake screen: Step-linked timers that transition to Dynamic Island and Live Activities.
+
+6. SIRI & APPLE INTELLIGENCE READY
+Ask Siri "What's for dinner in Order Home?", "Pitch Bulgogi Bowls for dinner", or "Set my dinner attendance to eating at home" directly from your iPhone, Apple Watch, or HomePod.
+
+7. ZERO-ACCOUNT, PRIVATE & SERVERLESS
+Order Home requires no accounts, no signups, no passwords, and collects zero personal data. All household data is stored on-device and shared seamlessly via peer-to-peer iMessage links or private CloudKit sync.
+
+Good food. Better together. Bring everyone to the table tonight with Order Home.

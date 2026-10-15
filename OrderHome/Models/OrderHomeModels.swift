@@ -72,17 +72,31 @@ struct Recipe: Identifiable, Codable, Hashable {
     }
 }
 
+enum UnitSystem: String, CaseIterable, Identifiable, Codable {
+    case standard = "Recipe"
+    case metric = "Metric"
+    case imperial = "Imperial"
+
+    var id: String { rawValue }
+    var title: String { rawValue }
+
+    static var regionalDefault: UnitSystem {
+        if #available(iOS 16.0, macOS 13.0, *) {
+            return Locale.current.measurementSystem == .metric ? .metric : .imperial
+        } else {
+            return Locale.current.usesMetricSystem ? .metric : .imperial
+        }
+    }
+}
+
 struct Ingredient: Identifiable, Codable, Hashable {
     var id: String
     var name: String
     var amount: Double
     var unit: String
 
-    /// Scales the complete ingredient quantity, including fractional servings.
-    /// Common kitchen fractions stay readable; other values retain three decimals.
-    func quantity(for diners: Int, baseServings: Int) -> String {
-        let scaled = amount * Double(max(0, diners)) / Double(max(1, baseServings))
-        let value = scaled.isFinite ? max(0, scaled) : 0
+    /// Formats a raw number into readable kitchen fractions or trimmed decimals.
+    static func formatNumber(_ value: Double) -> String {
         let whole = value.rounded(.down)
         let wholeText = String(format: "%.0f", locale: Locale(identifier: "en_US_POSIX"), whole)
         let remainder = value - whole
@@ -91,17 +105,84 @@ struct Ingredient: Identifiable, Codable, Hashable {
             (0.375, "⅜"), (0.5, "½"), (0.625, "⅝"),
             (2.0 / 3.0, "⅔"), (0.75, "¾"), (0.875, "⅞")
         ]
-        let number: String
         if remainder < 0.000_01 {
-            number = wholeText
+            return wholeText
         } else if let fraction = fractions.first(where: { abs($0.0 - remainder) < 0.000_01 }) {
-            number = (whole == 0 ? "" : wholeText) + fraction.1
+            return (whole == 0 ? "" : wholeText) + fraction.1
         } else {
-            number = String(format: "%.3f", locale: Locale(identifier: "en_US_POSIX"), value)
+            return String(format: "%.3f", locale: Locale(identifier: "en_US_POSIX"), value)
                 .replacingOccurrences(of: "0+$", with: "", options: .regularExpression)
                 .replacingOccurrences(of: "\\.$", with: "", options: .regularExpression)
         }
-        return unit.isEmpty ? number : "\(number) \(unit)"
+    }
+
+    /// Converts raw amount and unit according to the desired unit system.
+    func converted(amount: Double, unit: String, system: UnitSystem) -> (Double, String) {
+        guard system != .standard else { return (amount, unit) }
+        let u = unit.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+
+        switch system {
+        case .standard:
+            return (amount, unit)
+
+        case .metric:
+            switch u {
+            case "cup", "cups":
+                let ml = amount * 240.0
+                return ml >= 1000 ? (ml / 1000.0, "L") : (ml, "ml")
+            case "tbsp", "tablespoon", "tablespoons":
+                return (amount * 15.0, "ml")
+            case "tsp", "teaspoon", "teaspoons":
+                return (amount * 5.0, "ml")
+            case "oz", "ounce", "ounces":
+                return (amount * 28.3495, "g")
+            case "lb", "lbs", "pound", "pounds":
+                let g = amount * 453.592
+                return g >= 1000 ? (g / 1000.0, "kg") : (g, "g")
+            default:
+                return (amount, unit)
+            }
+
+        case .imperial:
+            switch u {
+            case "g", "gram", "grams":
+                let oz = amount / 28.3495
+                return oz >= 16 ? (oz / 16.0, "lbs") : (oz, "oz")
+            case "kg", "kilogram", "kilograms":
+                return (amount * 2.20462, "lbs")
+            case "ml", "milliliter", "milliliters":
+                if amount >= 240 {
+                    return (amount / 240.0, "cups")
+                } else if amount >= 15 {
+                    return (amount / 15.0, "tbsp")
+                } else {
+                    return (amount / 5.0, "tsp")
+                }
+            case "l", "liter", "liters":
+                return (amount * 4.22675, "cups")
+            default:
+                return (amount, unit)
+            }
+        }
+    }
+
+    /// Scales the complete ingredient quantity, optionally converting between Metric and Imperial.
+    /// Common kitchen fractions stay readable; other values retain three decimals.
+    func quantity(for diners: Int, baseServings: Int, unitSystem: UnitSystem = .standard) -> String {
+        let scaled = amount * Double(max(0, diners)) / Double(max(1, baseServings))
+        let value = scaled.isFinite ? max(0, scaled) : 0
+
+        let (convertedValue, convertedUnit) = converted(amount: value, unit: unit, system: unitSystem)
+
+        let finalNumber: String
+        let cleanUnit = convertedUnit.lowercased()
+        if (cleanUnit == "g" || cleanUnit == "ml") && convertedValue >= 5.0 {
+            finalNumber = "\(Int(convertedValue.rounded()))"
+        } else {
+            finalNumber = Self.formatNumber(convertedValue)
+        }
+
+        return convertedUnit.isEmpty ? finalNumber : "\(finalNumber) \(convertedUnit)"
     }
 }
 

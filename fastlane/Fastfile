@@ -1,0 +1,48 @@
+default_platform(:ios)
+
+platform :ios do
+  desc "Runs all unit tests on the iOS Simulator"
+  lane :test do
+    run_tests(
+      scheme: "OrderHome",
+      devices: ["iPhone 16 Pro", "iPhone 15"],
+      clean: true,
+      derived_data_path: "/tmp/orderhome_dd"
+    )
+  end
+
+  desc "Builds and archives the app for TestFlight distribution"
+  lane :beta do
+    test
+    build_app(
+      scheme: "OrderHome",
+      export_method: "app-store",
+      export_options: "./fastlane/exportOptions.plist",
+      output_directory: "./build",
+      output_name: "OrderHome.ipa"
+    )
+    upload_to_testflight(
+      skip_waiting_for_build_processing: true,
+      changelog: "TestFlight release candidate: full voting engine, Apple Intelligence App Intents, Reminders sync, and hands-free kitchen studio."
+    )
+  end
+
+  desc "Submits the app to the App Store"
+  lane :release do
+    test
+    build_app(
+      scheme: "OrderHome",
+      export_method: "app-store",
+      export_options: "./fastlane/exportOptions.plist",
+      output_directory: "./build",
+      output_name: "OrderHome.ipa"
+    )
+    upload_to_app_store(
+      force: true,
+      metadata_path: "./fastlane/metadata",
+      screenshots_path: "./fastlane/screenshots",
+      submit_for_review: false,
+      automatic_release: true
+    )
+  end
+end

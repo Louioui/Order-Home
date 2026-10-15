@@ -10,6 +10,10 @@ struct KitchenView: View {
     @State private var studioTab: StudioTab = .steps
     @State private var originalIdleTimerSetting: Bool?
     @State private var editingRecipe: Recipe?
+    @State private var unitSystem: UnitSystem = .standard
+    @State private var speechNavigator = SpeechStepNavigator.shared
+    @State private var isSyncingReminders = false
+    @State private var remindersSyncSuccess = false
 
     private enum StudioTab: String, CaseIterable {
         case steps = "Step by step"
@@ -40,13 +44,18 @@ struct KitchenView: View {
                 originalIdleTimerSetting = UIApplication.shared.isIdleTimerDisabled
             }
             updateScreenAwake()
+            setupSpeechNavigator()
         }
         .onDisappear {
             UIApplication.shared.isIdleTimerDisabled = originalIdleTimerSetting ?? false
             originalIdleTimerSetting = nil
+            speechNavigator.stopListening()
         }
-        .onChange(of: store.session.stage == .cooking) { _, _ in
+        .onChange(of: store.session.stage == .cooking) { _, isCooking in
             updateScreenAwake()
+            if !isCooking {
+                speechNavigator.stopListening()
+            }
         }
         .onChange(of: scenePhase) { _, _ in
             updateScreenAwake()
@@ -287,6 +296,7 @@ struct KitchenView: View {
         VStack(alignment: .leading, spacing: 18) {
             SectionHeading(title: "A little prep.", eyebrow: "THE INGREDIENTS")
             servingControl
+            unitControl
             VStack(spacing: 0) {
                 ForEach(Array(recipe.ingredients.enumerated()), id: \.element.id) { index, ingredient in
                     ingredientRow(ingredient, recipe: recipe)
@@ -300,6 +310,21 @@ struct KitchenView: View {
             Text("Check off what’s ready. Tap the basket for anything you need.")
                 .font(.caption).foregroundStyle(OHTheme.muted)
         }
+    }
+
+    private var unitControl: some View {
+        HStack(spacing: 8) {
+            Text("UNITS").font(.system(size: 10, weight: .bold, design: .monospaced)).tracking(1.2).foregroundStyle(OHTheme.muted)
+            Spacer()
+            Picker("Unit System", selection: $unitSystem) {
+                ForEach(UnitSystem.allCases, id: \.self) { system in
+                    Text(system.title).tag(system)
+                }
+            }
+            .pickerStyle(.segmented)
+            .frame(maxWidth: 220)
+        }
+        .padding(.vertical, 4)
     }
 
     private var servingControl: some View {
@@ -362,7 +387,7 @@ struct KitchenView: View {
                     .font(.subheadline.weight(.medium))
                     .strikethrough(checked)
                     .foregroundStyle(checked ? OHTheme.muted : OHTheme.ink)
-                Text(ingredient.quantity(for: servings, baseServings: recipe.servings))
+                Text(ingredient.quantity(for: servings, baseServings: recipe.servings, unitSystem: unitSystem))
                     .font(.caption.weight(.medium))
                     .foregroundStyle(OHTheme.muted)
             }
@@ -395,17 +420,59 @@ struct KitchenView: View {
             }
             Text(ingredients.map(\.name).joined(separator: ", "))
                 .font(.subheadline).foregroundStyle(OHTheme.muted)
-            ShareLink(item: groceryList(for: recipe)) {
-                HStack {
-                    Image(systemName: "square.and.arrow.up")
-                    Text("Share grocery list (\(ingredients.count))")
-                    Spacer()
-                    Image(systemName: "arrow.up.right")
+
+            VStack(spacing: 10) {
+                Button {
+                    Task {
+                        isSyncingReminders = true
+                        let count = await RemindersGroceryService.shared.exportMissingIngredients(
+                            ingredients: ingredients,
+                            recipeTitle: recipe.title,
+                            servings: servings,
+                            baseServings: recipe.servings,
+                            unitSystem: unitSystem
+                        )
+                        isSyncingReminders = false
+                        if count > 0 {
+                            remindersSyncSuccess = true
+                            store.toast = "Added \(count) items to Apple Reminders list “Order Home: Tonight’s Dinner”"
+                            UINotificationFeedbackGenerator().notificationOccurred(.success)
+                        } else {
+                            store.toast = "Could not sync to Reminders. Check Reminders permission in Settings."
+                        }
+                    }
+                } label: {
+                    HStack {
+                        Image(systemName: remindersSyncSuccess ? "checkmark.circle.fill" : "list.bullet.circle.fill")
+                            .foregroundStyle(remindersSyncSuccess ? OHTheme.green : OHTheme.accent)
+                        Text(isSyncingReminders ? "Adding to Apple Reminders…" : (remindersSyncSuccess ? "Added to Apple Reminders" : "Add to Apple Reminders"))
+                            .foregroundStyle(OHTheme.ink)
+                        Spacer()
+                        if isSyncingReminders {
+                            ProgressView().controlSize(.small)
+                        } else {
+                            Image(systemName: "arrow.right").foregroundStyle(OHTheme.muted)
+                        }
+                    }
+                    .font(.subheadline.weight(.semibold))
+                    .padding(15)
+                    .background(.white, in: RoundedRectangle(cornerRadius: 12))
                 }
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(OHTheme.accent)
-                .padding(15)
-                .background(.white, in: RoundedRectangle(cornerRadius: 12))
+                .buttonStyle(.plain)
+                .disabled(isSyncingReminders)
+
+                ShareLink(item: groceryList(for: recipe)) {
+                    HStack {
+                        Image(systemName: "square.and.arrow.up")
+                        Text("Share grocery list (\(ingredients.count))")
+                        Spacer()
+                        Image(systemName: "arrow.up.right")
+                    }
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(OHTheme.accent)
+                    .padding(15)
+                    .background(.white, in: RoundedRectangle(cornerRadius: 12))
+                }
             }
         }
         .padding(20)
@@ -446,6 +513,9 @@ struct KitchenView: View {
     private func cookingStudio(_ recipe: Recipe) -> some View {
         VStack(spacing: 0) {
             studioBanner(recipe)
+            if speechNavigator.isListening {
+                handsFreeBanner
+            }
             if let timerEnd = store.session.timerEnd {
                 timerBanner(end: timerEnd, title: store.session.timerTitle ?? "Kitchen timer")
             }
@@ -526,14 +596,36 @@ struct KitchenView: View {
                         .foregroundStyle(.white.opacity(0.8))
                 }
                 Spacer(minLength: 0)
-                if let source = recipe.sourceURL {
-                    Link(destination: source) {
-                        Image(systemName: "arrow.up.right.square")
-                            .font(.system(size: 19))
-                            .frame(width: 44, height: 44)
-                            .background(.white.opacity(0.16), in: Circle())
+                HStack(spacing: 8) {
+                    if speechNavigator.isAvailable {
+                        Button {
+                            if speechNavigator.isListening {
+                                speechNavigator.stopListening()
+                            } else {
+                                speechNavigator.startListening()
+                            }
+                        } label: {
+                            HStack(spacing: 5) {
+                                Image(systemName: speechNavigator.isListening ? "waveform.and.mic" : "mic")
+                                Text(speechNavigator.isListening ? "Listening" : "Hands-Free")
+                                    .font(.system(size: 11, weight: .semibold))
+                            }
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 7)
+                            .background(speechNavigator.isListening ? OHTheme.accent : .white.opacity(0.18), in: Capsule())
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(speechNavigator.isListening ? "Stop hands-free voice control" : "Start hands-free voice control")
                     }
-                    .accessibilityLabel("Open original recipe in browser")
+                    if let source = recipe.sourceURL {
+                        Link(destination: source) {
+                            Image(systemName: "arrow.up.right.square")
+                                .font(.system(size: 19))
+                                .frame(width: 44, height: 44)
+                                .background(.white.opacity(0.16), in: Circle())
+                        }
+                        .accessibilityLabel("Open original recipe in browser")
+                    }
                 }
             }
             .foregroundStyle(.white)
@@ -613,6 +705,26 @@ struct KitchenView: View {
                 .padding(24)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(.white, in: RoundedRectangle(cornerRadius: 24))
+                .gesture(
+                    DragGesture(minimumDistance: 45)
+                        .onEnded { value in
+                            if value.translation.width < -50 {
+                                let isLast = recipe.steps.isEmpty || store.session.stepIndex >= recipe.steps.count - 1
+                                if isLast {
+                                    KitchenNotifications.shared.cancelTimer()
+                                    store.ringDinnerBell()
+                                    KitchenNotifications.shared.playDinnerBell()
+                                    UINotificationFeedbackGenerator().notificationOccurred(.success)
+                                } else {
+                                    store.advanceStep()
+                                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                                }
+                            } else if value.translation.width > 50 {
+                                store.previousStep()
+                                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                            }
+                        }
+                )
 
                 Text("THE WHOLE RECIPE")
                     .font(.system(size: 10, weight: .bold, design: .monospaced))
@@ -796,9 +908,60 @@ struct KitchenView: View {
             .joined(separator: " · ")
     }
 
+    private var handsFreeBanner: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "waveform")
+                .symbolEffect(.variableColor.iterative, isActive: speechNavigator.isListening)
+            Text("Hands-Free Active: say “Next”, “Back”, or “Ring Bell” · Or swipe screen")
+                .font(.system(size: 11, weight: .semibold, design: .monospaced))
+            Spacer()
+            Button {
+                speechNavigator.stopListening()
+            } label: {
+                Image(systemName: "xmark").font(.caption2.weight(.bold))
+            }
+        }
+        .foregroundStyle(.white)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
+        .background(OHTheme.ink)
+    }
+
+    private func setupSpeechNavigator() {
+        speechNavigator.onCommand = { [weak store] command in
+            guard let store else { return }
+            switch command {
+            case .next:
+                if store.session.stage == .cooking {
+                    if let winner = store.winner, !winner.steps.isEmpty, store.session.stepIndex >= winner.steps.count - 1 {
+                        KitchenNotifications.shared.cancelTimer()
+                        store.ringDinnerBell()
+                        KitchenNotifications.shared.playDinnerBell()
+                        UINotificationFeedbackGenerator().notificationOccurred(.success)
+                    } else {
+                        store.advanceStep()
+                        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                    }
+                }
+            case .previous:
+                if store.session.stage == .cooking {
+                    store.previousStep()
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                }
+            case .ringBell:
+                if store.session.stage == .cooking {
+                    KitchenNotifications.shared.cancelTimer()
+                    store.ringDinnerBell()
+                    KitchenNotifications.shared.playDinnerBell()
+                    UINotificationFeedbackGenerator().notificationOccurred(.success)
+                }
+            }
+        }
+    }
+
     private func groceryList(for recipe: Recipe) -> String {
         let items = missingIngredients(in: recipe).map {
-            "☐ \($0.quantity(for: servings, baseServings: recipe.servings)) \($0.name)"
+            "☐ \($0.quantity(for: servings, baseServings: recipe.servings, unitSystem: unitSystem)) \($0.name)"
         }.joined(separator: "\n")
         return "Order Home · Can you grab these on the way home?\n\nTonight: \(recipe.title)\nFor \(servings) servings\n\n\(items)\n\nSee you at the table!"
     }

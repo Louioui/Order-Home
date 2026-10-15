@@ -125,6 +125,7 @@ struct TonightView: View {
     private var dinnerBoard: some View {
         VStack(alignment: .leading, spacing: 16) {
             SectionHeading(title: "What sounds good?", eyebrow: "THE DINNER BOARD", trailing: "Add a craving", action: { sheet = .menu })
+            suggestionsSection
             if store.pitches.isEmpty {
                 VStack(spacing: 13) {
                     Image(systemName: "leaf").font(.system(size: 30)).foregroundStyle(OHTheme.green)
@@ -160,6 +161,81 @@ struct TonightView: View {
                 }
             }
         }
+    }
+    @ViewBuilder
+    private var suggestionsSection: some View {
+        let suggestions = DinnerSuggestionEngine.generateSuggestions(
+            recipes: store.recipes,
+            history: store.history,
+            favorites: store.favoriteIDs,
+            limit: 3
+        )
+        if !suggestions.isEmpty && store.session.stage == .pitching {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack {
+                    Image(systemName: "sparkles").foregroundStyle(OHTheme.accent).font(.system(size: 11))
+                    Text("SUGGESTED FOR TONIGHT").font(.system(size: 9, weight: .bold)).tracking(1.4).foregroundStyle(OHTheme.accent)
+                    Spacer()
+                    Text("Family habits").font(.system(size: 9, weight: .medium)).foregroundStyle(OHTheme.muted)
+                }
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 12) {
+                        ForEach(suggestions) { suggestion in
+                            suggestionCard(suggestion)
+                        }
+                    }.padding(.bottom, 2)
+                }
+            }
+        }
+    }
+    private func suggestionCard(_ suggestion: DinnerSuggestion) -> some View {
+        let isPitched = store.session.recipeIDs.contains(suggestion.recipe.id)
+        return VStack(alignment: .leading, spacing: 8) {
+            ZStack(alignment: .topLeading) {
+                FoodImage(recipe: suggestion.recipe).frame(height: 98).clipShape(RoundedRectangle(cornerRadius: 12))
+                Text(suggestion.matchTag)
+                    .font(.system(size: 8, weight: .bold))
+                    .tracking(0.6)
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 4)
+                    .background(OHTheme.ink.opacity(0.85), in: Capsule())
+                    .padding(6)
+            }
+            VStack(alignment: .leading, spacing: 3) {
+                Text(suggestion.recipe.title)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(OHTheme.ink)
+                    .lineLimit(1)
+                Text(suggestion.reason)
+                    .font(.system(size: 10))
+                    .foregroundStyle(OHTheme.muted)
+                    .lineLimit(1)
+            }
+            Button {
+                if isPitched {
+                    store.removePitch(suggestion.recipe.id)
+                } else {
+                    store.nominate(suggestion.recipe)
+                }
+                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            } label: {
+                HStack(spacing: 4) {
+                    Image(systemName: isPitched ? "checkmark" : "plus")
+                    Text(isPitched ? "Pitched" : "Pitch")
+                }
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(isPitched ? OHTheme.muted : OHTheme.accent)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 6)
+                .background(isPitched ? OHTheme.background : OHTheme.accent.opacity(0.08), in: RoundedRectangle(cornerRadius: 8))
+            }
+            .buttonStyle(.plain)
+            .disabled(isPitched ? false : store.session.recipeIDs.count >= 5)
+        }
+        .frame(width: 150)
+        .padding(10)
+        .background(.white, in: RoundedRectangle(cornerRadius: 16))
     }
     private func boardCard(_ recipe: Recipe) -> some View {
         let cardScore = store.score(for: recipe.id)

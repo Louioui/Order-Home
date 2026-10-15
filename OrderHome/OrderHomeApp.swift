@@ -7,7 +7,7 @@ struct OrderHomeApp: App {
     @State private var cloud: CloudKitchenController
 
     init() {
-        let store = OrderHomeStore()
+        let store = OrderHomeStore.shared
         _store = State(initialValue: store)
         _cloud = State(initialValue: CloudKitchenController(store: store))
     }
@@ -85,7 +85,18 @@ struct RootView: View {
         }
         .onOpenURL { url in
             guard url.scheme == "orderhome" else { return }
-            selectedTab = url.host == "kitchen" ? .kitchen : .tonight
+            switch url.host {
+            case "kitchen", "cooking", "ticket":
+                selectedTab = .kitchen
+            case "menu", "recipes":
+                selectedTab = .menu
+            case "table", "household":
+                selectedTab = .table
+            case "tonight", "pitch", "vote":
+                selectedTab = .tonight
+            default:
+                selectedTab = .tonight
+            }
         }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active {

@@ -6,6 +6,8 @@ import Observation
 @MainActor
 @Observable
 final class OrderHomeStore {
+    static let shared = OrderHomeStore()
+
     var household: Household
     var session: DinnerSession
     var recipes: [Recipe] {
@@ -213,6 +215,15 @@ final class OrderHomeStore {
         session.completedStepIDs.insert(winner.steps[session.stepIndex].id)
         if session.stepIndex < winner.steps.count - 1 { session.stepIndex += 1 }
         save()
+    }
+
+    func previousStep() {
+        guard !isSharedPresentation else { show("Use your connected kitchen to make this change."); return }
+        guard session.stage == .cooking, winner != nil else { return }
+        if session.stepIndex > 0 {
+            session.stepIndex -= 1
+            save()
+        }
     }
 
     func ringDinnerBell() {
@@ -482,6 +493,31 @@ final class OrderHomeStore {
         storedVotes = []
         storedOrders = [:]
         save()
+    }
+
+    /// Wipes all local kitchen data, resets state, and clears shared App Group files.
+    /// Complies with Apple Review Guideline 5.1.1(v) for account & data deletion.
+    func resetAllData() {
+        KitchenNotifications.shared.cancelTimer()
+        #if canImport(ActivityKit)
+        KitchenLiveActivityManager.shared.endAll()
+        #endif
+
+        let owner = Self.owner()
+        household = Household(name: "Our kitchen", mode: .family, members: [owner])
+        session = .fresh()
+        recipes = RecipeCatalog.all
+        rebuildRecipeIndex()
+        selectedMemberID = owner.id
+        favoriteIDs = []
+        hasOnboarded = false
+        storedVotes = []
+        storedOrders = [:]
+        history = []
+        toast = "All kitchen data has been reset."
+
+        try? FileManager.default.removeItem(at: persistenceURL)
+        SharedKitchenContainer.reset()
     }
 
     func completeOnboarding(name: String, personName: String, mode: HouseholdMode) {

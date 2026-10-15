@@ -66,4 +66,21 @@ enum SharedKitchenContainer {
             try? fm.copyItem(at: legacyFile, to: sharedFile)
         }
     }
+
+    /// Wipes all files from the shared container (and legacy fallback) for complete data erasure.
+    static func reset() {
+        let fm = FileManager.default
+        if fm.fileExists(atPath: kitchenFileURL.path) {
+            try? fm.removeItem(at: kitchenFileURL)
+        }
+        if fm.fileExists(atPath: pendingChatPollURL.path) {
+            try? fm.removeItem(at: pendingChatPollURL)
+        }
+        if let appSupport = fm.urls(for: .applicationSupportDirectory, in: .userDomainMask).first {
+            let legacyFile = appSupport.appendingPathComponent("OrderHome/kitchen.json")
+            if fm.fileExists(atPath: legacyFile.path) {
+                try? fm.removeItem(at: legacyFile)
+            }
+        }
+    }
 }
