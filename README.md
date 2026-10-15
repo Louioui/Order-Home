@@ -10,7 +10,7 @@ This project implements a complete **local, single-device dinner workflow** from
 2. Select the **OrderHome** scheme and an iPhone or iPad simulator running iOS 17 or later.
 3. Press **Run**. Create your kitchen or choose the sample table.
 
-For a physical device, select your Apple development team in the OrderHome target's **Signing & Capabilities**, choose a unique bundle identifier if required, and run on your connected device. Signing credentials are not included.
+For a physical device, select your Apple development team in the OrderHome target's **Signing & Capabilities**, choose a unique bundle identifier if required, and run on your connected device. Signing credentials are not included. The **OrderHomeMessages** (iMessage) target needs the same team, and its bundle identifier must stay prefixed by the app's: if you change the app to `com.example.orderhome`, change the extension to `com.example.orderhome.messages`.
 
 To run the automated checks, choose **Product → Test** with the same scheme and simulator. From Terminal, a corresponding command is:
 
@@ -57,7 +57,7 @@ The architecture also describes a distributed product. The project now contains 
 | Recipe video | Recipe source handoff | Verified video selection and supported embedded player |
 | Live Activities/Dynamic Island | Cooking progress inside the app | ActivityKit attributes, Widget extension, entitlements, server update tokens |
 | Dinner bell | Local served state, foreground chime, and haptic feedback | Device registration, APNs delivery, notification permission, remote sound assets |
-| iMessage voting | Shareable text | Dedicated Messages extension and connected poll state |
+| iMessage voting | A Messages extension for in-chat polls is built and unit-tested, but its end-to-end flow is not yet confirmed (see "iMessage poll"); other sharing is system-share-sheet text | Importing a finished chat poll into the app's kitchen, and tying chat participants to household members |
 | Watch companion and purchases | Not included | Separate targets and product requirements |
 
 Custom `orderhome://` routing is registered for local navigation. It is not an HTTPS Universal Link, cannot install the app, and does not grant access to another household. Sharing local app state does not synchronize it to another phone.
@@ -73,13 +73,30 @@ OrderHome/
   Services/OrderHomeStore.swift  Dinner rules and atomic local persistence
   Views/                        SwiftUI screens and visual system
   Assets.xcassets/               Bundled recipe photos and app assets
+OrderHomeMessages/              iMessage app extension: poll UI, bubble, Messages glue
+OrderHomePoll/                  Poll rules and message URL format, shared by the app and the extension
 OrderHomeTests/                 Workflow, scoring, persistence, and scaling tests
 supabase/migrations/           Optional connected-backend database baseline
 supabase/tests/                Disposable-database security/workflow smoke test
 docs/                          Architecture and connection notes
 ```
 
-The Xcode project uses synchronized folder groups. New source or asset files added inside `OrderHome/` are automatically included in the app target; test files inside `OrderHomeTests/` belong to the test target.
+The Xcode project uses synchronized folder groups. New source or asset files added inside `OrderHome/` are automatically included in the app target; test files inside `OrderHomeTests/` belong to the test target. `OrderHomeMessages/` belongs to the Messages extension target, and `OrderHomePoll/` is compiled into both the app and the extension.
+
+## iMessage poll
+
+**Status:** the extension is built, installs, appears in the Messages app drawer, and its poll rules are unit-tested. The end-to-end chat flow below (composing, sending, voting and the bubble updating in place) has not been confirmed on screen or on a device yet; see `docs/Verification.md` for exactly what was and was not seen.
+
+Order Home includes an iMessage app (the `OrderHomeMessages` extension, bundle ID `com.orderhome.app.messages`). It is designed so that in any conversation you tap **+** in Messages and choose Order Home to start a poll: pick 2 to 5 dishes and how long voting stays open. Everyone with the app sees the poll bubble, taps it, reacts 🔥 / 👌 / ✋ to every dish and sends their order. Each vote sends an updated copy of the same message, and Messages replaces the bubble in place with the new tally. The person who started the poll can close it early; it also ends when the deadline passes or everyone in the chat has voted. Dishes are ranked exactly like a kitchen vote: higher score, then fewer passes, then the order they were pitched.
+
+How it works and what to expect:
+
+- **No server.** The whole poll, including every ballot, travels in the message's `orderhome://poll?p=…` URL (about 1 KB at five dishes and a dozen voters). The rules live in `OrderHomePoll/ChatPoll.swift` and are covered by unit tests.
+- **Anonymous voters.** Messages identifies chat participants only by a per-conversation ID, never a name, so the bubble shows "3 of 4 voted" rather than who voted.
+- **Last send wins.** If two people vote from the same bubble at the same moment, the later message replaces the earlier one and the other ballot can be lost; the loser can simply vote again.
+- **Standalone for now.** A chat poll does not sync into the app's kitchen, and the finished bubble's "Open Order Home" button just opens the app. Importing the winner into a dinner is not built.
+- **Dish list is copied.** The extension cannot see the app's recipe catalog, so `OrderHomePoll/PollDishMenu.swift` repeats its ids, titles and times; a unit test fails if they drift.
+- The iMessage app icon is generated from the app icon and has not had a designer's review.
 
 ## Optional backend baseline
 
